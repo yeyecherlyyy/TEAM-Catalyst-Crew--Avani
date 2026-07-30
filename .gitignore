@@ -1,8 +1,11 @@
-# Ghost-PM
+# Ghost-PM / Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyc
 .ghost/
 graphify-out/
-__pycache__/
-*.pyc
 .env
 .env.local
 .env.development.local
@@ -10,11 +13,23 @@ __pycache__/
 .env.production.local
 .venv/
 venv/
+env/
 .DS_Store
+Thumbs.db
 node_modules/
 build/
 dist/
 *.egg-info/
+*.egg
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Next.js and frontend defaults
 /.pnp

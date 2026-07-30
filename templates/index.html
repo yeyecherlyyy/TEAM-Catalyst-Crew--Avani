@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Judge Agent | AI Hackathon Evaluator</title>
+    <meta name="description" content="AI-powered hackathon submission evaluator. Get scored, evidence-based criticism and judge-style questions before the real round.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Ambient background -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 2L4 8v8c0 7.18 5.12 13.9 12 15.4C22.88 29.9 28 23.18 28 16V8L16 2z" stroke="url(#logo-grad)" stroke-width="2" fill="none"/>
+                        <path d="M11 16l3 3 7-7" stroke="url(#logo-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="logo-grad" x1="4" y1="2" x2="28" y2="31.4">
+                                <stop stop-color="#6366f1"/>
+                                <stop offset="1" stop-color="#a855f7"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="logo-text">Judge Agent</h1>
+                    <p class="logo-subtitle">Ghost-PM Hackathon Evaluator</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-ghost" id="calibrationBtn" title="Run calibration test">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 010 11zM8 4a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 4zm0 7a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>
+                    Calibration Test
+                </button>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Input Panel -->
+            <section class="panel input-panel" id="inputPanel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Submission Input</h2>
+                    <p class="panel-subtitle">Provide at least one input source. More inputs = sharper criticism.</p>
+                </div>
+
+                <form id="judgeForm" enctype="multipart/form-data">
+
+                    <!-- Model selector -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 2A2.5 2.5 0 002 4.5v7A2.5 2.5 0 004.5 14h7a2.5 2.5 0 002.5-2.5v-7A2.5 2.5 0 0011.5 2h-7zM3.5 4.5a1 1 0 011-1h7a1 1 0 011 1v7a1 1 0 01-1 1h-7a1 1 0 01-1-1v-7z"/></svg>
+                            Model
+                        </label>
+                        <select id="modelSelect" class="form-input form-select">
+                            <option value="gemini-2.0-flash" selected>gemini-2.0-flash (fast)</option>
+                            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                            <option value="gemini-2.5-pro">gemini-2.5-pro (detailed)</option>
+                        </select>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Idea input -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="input-badge">1</span>
+                            Idea Description
+                        </label>
+                        <textarea id="ideaText" class="form-input form-textarea" rows="5" placeholder="Describe your hackathon project idea here... What problem does it solve? Who is it for? What's the tech stack?"></textarea>
+                        <div class="word-count" id="ideaWordCount">0 words</div>
+                    </div>
+
+                    <!-- PPT upload -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="input-badge">2</span>
+                            Pitch Deck
+                        </label>
+                        <div class="file-upload" id="fileDropZone">
+                            <input type="file" id="pptFile" accept=".pptx,.docx" class="file-input">
+                            <div class="file-upload-content">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                                <p class="file-upload-text">Drop your <strong>.pptx</strong> or <strong>.docx</strong> here</p>
+                                <p class="file-upload-hint">or click to browse</p>
+                            </div>
+                            <div class="file-selected" id="fileSelected" style="display:none">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg>
+                                <span id="fileName"></span>
+                                <button type="button" class="file-remove" id="fileRemove">&times;</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Web Research toggle -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="input-badge">3</span>
+                            Web Research
+                        </label>
+                        <div class="toggle-row">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="enableResearch" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">Search for competitors &amp; similar products online</span>
+                        </div>
+                        <span class="form-hint">Uses Tavily to find existing solutions, giving the judge real differentiation context.</span>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Actions -->
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="previewBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            Preview Extraction
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="judgeBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                            Judge My Submission
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Results Panel -->
+            <section class="panel results-panel" id="resultsPanel" style="display:none">
+                <div class="panel-header">
+                    <h2 class="panel-title" id="resultsTitle">Evaluation Report</h2>
+                    <button class="btn btn-ghost btn-sm" id="backBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        New Evaluation
+                    </button>
+                </div>
+
+                <!-- Loading state -->
+                <div class="loading-state" id="loadingState" style="display:none">
+                    <div class="loading-spinner"></div>
+                    <p class="loading-text">Evaluating your submission...</p>
+                    <p class="loading-hint">The judge is being skeptical. This may take 15-30 seconds.</p>
+                </div>
+
+                <!-- Error state -->
+                <div class="error-state" id="errorState" style="display:none">
+                    <div class="error-icon">!</div>
+                    <p class="error-text" id="errorText"></p>
+                    <button class="btn btn-secondary" id="retryBtn">Try Again</button>
+                </div>
+
+                <!-- Results content -->
+                <div id="resultsContent" style="display:none">
+                    <!-- Warnings -->
+                    <div class="warnings-section" id="warningsSection" style="display:none">
+                        <div class="warning-banner" id="warningsList"></div>
+                    </div>
+
+                    <!-- Calibration note -->
+                    <div class="calibration-note" id="calibrationNote" style="display:none">
+                        <p id="calibrationText"></p>
+                    </div>
+
+                    <!-- Inputs used -->
+                    <div class="inputs-used" id="inputsUsed"></div>
+
+                    <!-- Scores -->
+                    <div class="scores-section">
+                        <h3 class="section-title">Scores</h3>
+                        <div class="scores-grid" id="scoresGrid"></div>
+                        <div class="average-score" id="averageScore"></div>
+                    </div>
+
+                    <!-- Questions -->
+                    <div class="questions-section">
+                        <h3 class="section-title">Judge Questions <span class="section-badge">easy -> hardest</span></h3>
+                        <div class="questions-list" id="questionsList"></div>
+                    </div>
+
+                    <!-- Readiness Summary -->
+                    <div class="readiness-section">
+                        <h3 class="section-title">Readiness Summary</h3>
+                        <div class="readiness-card" id="readinessSummary"></div>
+                    </div>
+
+                    <!-- Raw JSON toggle -->
+                    <div class="raw-json-section">
+                        <button class="btn btn-ghost btn-sm" id="toggleJson">Show Raw JSON</button>
+                        <pre class="json-output" id="jsonOutput" style="display:none"></pre>
+                    </div>
+                </div>
+
+                <!-- Extraction Preview -->
+                <div id="extractionPreview" style="display:none">
+                    <div class="extraction-header">
+                        <h3 class="section-title">Extracted Text Preview</h3>
+                        <p class="extraction-meta" id="extractionMeta"></p>
+                    </div>
+                    <pre class="extraction-content" id="extractionContent"></pre>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Ghost-PM &middot; TEAM Catalyst Crew &middot; Judge Agent v1.0</p>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
