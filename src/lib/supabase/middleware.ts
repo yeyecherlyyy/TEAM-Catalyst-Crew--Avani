@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  // // Skip auth when Supabase is not configured
+  // const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // if (!supabaseUrl || !supabaseKey || supabaseUrl === 'your_supabase_project_url') {
+  //   return NextResponse.next({ request });
+  // }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
