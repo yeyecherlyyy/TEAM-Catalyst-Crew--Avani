@@ -495,11 +495,6 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER teams_updated_at BEFORE UPDATE ON teams
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

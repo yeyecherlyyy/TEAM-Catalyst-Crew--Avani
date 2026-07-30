@@ -317,7 +317,7 @@ RETURNS BOOLEAN AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
--- Helper function:-- Check team ownership
+-- Check team ownership
 CREATE OR REPLACE FUNCTION is_team_owner(check_team_id UUID)
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
