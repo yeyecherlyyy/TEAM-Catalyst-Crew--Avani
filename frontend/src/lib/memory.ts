@@ -11,7 +11,7 @@ export interface StoredMessage {
   created_at: string;
 }
 
-// Get or create a CLI-style chat session for the team
+// Get or create a web-based chat session for the team
 export async function getOrCreateSession(
   teamId: string
 ): Promise<string | null> {
@@ -20,10 +20,10 @@ export async function getOrCreateSession(
     .from("brainstorm_sessions")
     .select("id")
     .eq("team_id", teamId)
-    .eq("topic", "ghostpm-web-chat")
+    .eq("anchor_text", "__web_chat__")
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (existing?.id) return existing.id;
 
@@ -32,7 +32,7 @@ export async function getOrCreateSession(
     .from("brainstorm_sessions")
     .insert({
       team_id: teamId,
-      topic: "ghostpm-web-chat",
+      anchor_text: "__web_chat__",
     })
     .select("id")
     .single();
