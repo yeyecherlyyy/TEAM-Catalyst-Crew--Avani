@@ -1,0 +1,675 @@
+/* ════════════════════════════════════════════════════
+   Ghost-PM Test Dashboard — Design System
+   Dark theme, neon accents, glass panels
+   ════════════════════════════════════════════════════ */
+
+:root {
+    /* Colors */
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-panel: rgba(18, 18, 30, 0.85);
+    --bg-panel-hover: rgba(24, 24, 40, 0.9);
+    --border: rgba(255, 255, 255, 0.06);
+    --border-glow: rgba(99, 102, 241, 0.3);
+
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-dim: #52525b;
+
+    --accent: #818cf8;
+    --accent-bright: #a5b4fc;
+    --green: #34d399;
+    --green-dim: rgba(52, 211, 153, 0.15);
+    --yellow: #fbbf24;
+    --yellow-dim: rgba(251, 191, 36, 0.15);
+    --red: #f87171;
+    --red-dim: rgba(248, 113, 113, 0.15);
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34, 211, 238, 0.15);
+
+    /* Typography */
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Spacing */
+    --radius: 12px;
+    --radius-sm: 8px;
+    --gap: 16px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.5;
+}
+
+/* ── Connection Bar ───────────────────────────────── */
+
+#connection-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.connection-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ghost-logo {
+    font-size: 1.5rem;
+    filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.5));
+}
+
+.connection-left h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent-bright), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.connection-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.connection-right input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    transition: border-color 0.2s;
+    min-width: 140px;
+}
+
+.connection-right input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+}
+
+.connection-right input::placeholder {
+    color: var(--text-dim);
+}
+
+#connect-btn {
+    background: linear-gradient(135deg, var(--accent), #6366f1);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 20px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#connect-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+}
+
+#connect-btn:active {
+    transform: translateY(0);
+}
+
+.badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge.connected {
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+.badge.disconnected {
+    background: var(--red-dim);
+    color: var(--red);
+}
+
+/* ── Room Header ──────────────────────────────────── */
+
+#room-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.room-info h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.room-info p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.room-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.tag {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+
+.timer {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--yellow);
+}
+
+#panic-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.panic-off {
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+.panic-on {
+    background: var(--red-dim);
+    color: var(--red);
+    animation: panic-pulse 1.5s ease-in-out infinite;
+}
+
+.panic-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+@keyframes panic-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ── Dashboard Grid ───────────────────────────────── */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap);
+    padding: 0 24px 24px;
+}
+
+@media (max-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Panels ───────────────────────────────────────── */
+
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    transition: border-color 0.3s;
+}
+
+.panel:hover {
+    border-color: var(--border-glow);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-header h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.panel-count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.panel-body {
+    padding: 16px 20px;
+}
+
+.panel-body.scrollable {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.panel-body.scrollable::-webkit-scrollbar {
+    width: 4px;
+}
+
+.panel-body.scrollable::-webkit-scrollbar-thumb {
+    background: var(--text-dim);
+    border-radius: 2px;
+}
+
+.empty-state {
+    color: var(--text-dim);
+    text-align: center;
+    padding: 32px;
+    font-size: 0.85rem;
+}
+
+/* ── Milestone Items ──────────────────────────────── */
+
+.milestone-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.milestone-item:last-child {
+    border-bottom: none;
+}
+
+.milestone-icon {
+    font-size: 1.2rem;
+    width: 28px;
+    text-align: center;
+}
+
+.milestone-info {
+    flex: 1;
+}
+
+.milestone-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.milestone-progress {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.milestone-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.milestone-progress-fill.active {
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+}
+
+.milestone-progress-fill.completed {
+    background: var(--green);
+}
+
+.milestone-progress-fill.pending {
+    background: var(--text-dim);
+}
+
+.milestone-percent {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ── Team Members ─────────────────────────────────── */
+
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.member-item:last-child {
+    border-bottom: none;
+}
+
+.member-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    background: linear-gradient(135deg, var(--accent), #6366f1);
+    color: white;
+    position: relative;
+}
+
+.member-avatar .online-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-panel);
+}
+
+.member-avatar .online-dot.online { background: var(--green); }
+.member-avatar .online-dot.offline { background: var(--text-dim); }
+
+.member-info {
+    flex: 1;
+}
+
+.member-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.member-file {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.member-time {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.member-time.warning {
+    color: var(--red);
+    font-weight: 600;
+}
+
+.member-commits {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+/* ── Graph Stats ──────────────────────────────────── */
+
+.graph-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    text-align: center;
+}
+
+.stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: block;
+    background: linear-gradient(135deg, var(--accent-bright), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Function status bar */
+.function-status-bar {
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.status-segment {
+    transition: width 0.5s ease;
+}
+
+.status-segment.implemented { background: var(--green); }
+.status-segment.in_progress { background: var(--yellow); }
+.status-segment.stub { background: var(--text-dim); }
+.status-segment.broken { background: var(--red); }
+.status-segment.tested { background: var(--cyan); }
+
+/* God nodes and communities */
+.god-node-item, .community-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+.god-node-item .risk-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.risk-badge.high { background: var(--red-dim); color: var(--red); }
+.risk-badge.medium { background: var(--yellow-dim); color: var(--yellow); }
+.risk-badge.low { background: var(--green-dim); color: var(--green); }
+
+/* ── Commit Items ─────────────────────────────────── */
+
+.commit-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    align-items: flex-start;
+}
+
+.commit-item:last-child {
+    border-bottom: none;
+}
+
+.commit-hash {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    min-width: 60px;
+    padding-top: 2px;
+}
+
+.commit-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.commit-message {
+    color: var(--text-primary);
+}
+
+.commit-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.commit-author {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    min-width: 70px;
+    text-align: right;
+    line-height: 1.4;
+}
+
+.commit-scope {
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.commit-scope.blocked { background: var(--red-dim); color: var(--red); }
+
+/* ── Status Legend ────────────────────────────────── */
+
+.status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+/* ── Section Labels ───────────────────────────────── */
+
+.section-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    margin-top: 12px;
+}
+
+/* ── Milestone Description ────────────────────────── */
+
+.milestone-description {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+/* ── Helpers ──────────────────────────────────────── */
+
+.mono-text {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+.dim {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+}
+
+/* ── Toast Notifications ──────────────────────────── */
+
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+}
+
+.toast {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    font-size: 0.85rem;
+    backdrop-filter: blur(16px);
+    animation: toast-in 0.3s ease-out;
+    max-width: 360px;
+}
+
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.info { border-left: 3px solid var(--accent); }
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Utilities ────────────────────────────────────── */
+
+.hidden {
+    display: none !important;
+}
