@@ -1,31 +1,73 @@
 // ── Shared memory: conversation history via Supabase ──
 import { supabase } from "./supabase";
 
+// Matches the actual brainstorm_messages table schema
 export interface StoredMessage {
   id: string;
   session_id: string;
-  sender_id: string | null;
+  team_id: string;
+  user_id: string | null;
   content: string;
   is_ai: boolean;
-  classification: string | null;
   created_at: string;
 }
 
-// Get or create a web-based chat session for the team
+const STORAGE_KEY = "ghostpm_chat_history";
+const SESSION_KEY = "ghostpm_session_id";
+
+// ── localStorage fallback ────────────────────────────
+export function saveToLocal(messages: { role: "user" | "bot"; text: string }[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  } catch {}
+}
+
+export function loadFromLocal(): { role: "user" | "bot"; text: string }[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearLocal() {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(SESSION_KEY);
+}
+
+// ── Session management ───────────────────────────────
 export async function getOrCreateSession(
   teamId: string
 ): Promise<string | null> {
-  // Try to find existing chat session
+  // Check localStorage for a cached session ID first
+  const cached = localStorage.getItem(SESSION_KEY);
+  if (cached) {
+    // Verify it still exists
+    const { data } = await supabase
+      .from("brainstorm_sessions")
+      .select("id")
+      .eq("id", cached)
+      .eq("team_id", teamId)
+      .maybeSingle();
+    if (data?.id) return data.id;
+  }
+
+  // Try to find existing web chat session
   const { data: existing } = await supabase
     .from("brainstorm_sessions")
     .select("id")
     .eq("team_id", teamId)
     .eq("anchor_text", "__web_chat__")
+    .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (existing?.id) return existing.id;
+  if (existing?.id) {
+    localStorage.setItem(SESSION_KEY, existing.id);
+    return existing.id;
+  }
 
   // Create a new session
   const { data: created, error } = await supabase
@@ -33,6 +75,7 @@ export async function getOrCreateSession(
     .insert({
       team_id: teamId,
       anchor_text: "__web_chat__",
+      is_active: true,
     })
     .select("id")
     .single();
@@ -42,22 +85,26 @@ export async function getOrCreateSession(
     return null;
   }
 
-  return created?.id ?? null;
+  const sid = created?.id ?? null;
+  if (sid) localStorage.setItem(SESSION_KEY, sid);
+  return sid;
 }
 
-// Save a message to the shared memory
+// ── Save a message ───────────────────────────────────
+// Uses the ACTUAL brainstorm_messages columns: team_id, user_id, session_id, content, is_ai
 export async function saveMessage(
   sessionId: string,
+  teamId: string,
   content: string,
   isAi: boolean,
-  senderId?: string
+  userId?: string
 ): Promise<void> {
   const { error } = await supabase.from("brainstorm_messages").insert({
     session_id: sessionId,
-    sender_id: isAi ? null : senderId,
+    team_id: teamId,
+    user_id: isAi ? null : (userId || null),
     content,
     is_ai: isAi,
-    classification: isAi ? "artifact" : null,
   });
 
   if (error) {
@@ -65,14 +112,14 @@ export async function saveMessage(
   }
 }
 
-// Load conversation history for a session
+// ── Load conversation history ────────────────────────
 export async function loadHistory(
   sessionId: string,
   limit = 50
 ): Promise<StoredMessage[]> {
   const { data, error } = await supabase
     .from("brainstorm_messages")
-    .select("*")
+    .select("id, session_id, team_id, user_id, content, is_ai, created_at")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -85,7 +132,7 @@ export async function loadHistory(
   return (data ?? []) as StoredMessage[];
 }
 
-// Convert stored messages to Gemini conversation format
+// ── Convert to Gemini format ─────────────────────────
 export function toGeminiHistory(
   messages: StoredMessage[]
 ): { role: "user" | "model"; text: string }[] {

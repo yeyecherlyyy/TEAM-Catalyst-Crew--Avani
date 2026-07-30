@@ -2,10 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Menu,
-  History,
-  Rocket,
-  Trophy,
-  Settings,
   Sparkle,
   Send,
   Sun,
@@ -21,23 +17,30 @@ import {
   Plus,
   Copy,
   Check,
+  Map,
+  BarChart3,
 } from "lucide-react";
 import { AuthModal } from "../components/auth-gate";
 import { ArtifactGrid } from "../components/artifact-card";
 import { CreateTeamModal, JoinTeamModal } from "../components/team-modals";
 import { JudgePanel } from "../components/judge-panel";
 import { CodeGraphPanel } from "../components/code-graph";
+import { RoadmapPanel } from "../components/roadmap-panel";
+import { CliBanner } from "../components/cli-banner";
 import { useAuth } from "../lib/auth";
 import { callGemini, type Artifact, type GeminiResponse } from "../lib/gemini";
-import { saveArtifact, loadArtifacts } from "../lib/artifacts";
+import { saveArtifact, loadArtifacts, saveArtifactsLocal, loadArtifactsLocal } from "../lib/artifacts";
 import {
   getOrCreateSession,
   saveMessage,
   loadHistory,
+  loadFromLocal,
+  saveToLocal,
 } from "../lib/memory";
+import { useRealtimeMessages } from "../lib/realtime";
 import { supabase } from "../lib/supabase";
 
-export const Route = createFileRoute("/")(  {
+export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "GhostPM — Hackathon Command Center" },
@@ -46,19 +49,17 @@ export const Route = createFileRoute("/")(  {
         content:
           "AI-powered hackathon project manager: turn problem statements into pitch-ready artifacts, practice with an AI judge, and visualize your codebase.",
       },
-      { property: "og:title", content: "GhostPM — Hackathon Command Center" },
-      { property: "og:type", content: "website" },
     ],
   }),
   component: Dashboard,
 });
 
-// ── View modes for the center pane ───────────────────
-type ViewMode = "artifacts" | "judge" | "graph";
+// ── View modes ───────────────────────────────────────
+type ViewMode = "artifacts" | "judge" | "graph" | "roadmap";
 
-// ── Sidebar menu items ───────────────────────────────
-const sidebarItems: { label: string; icon: typeof Menu; view?: ViewMode }[] = [
+const sidebarItems: { label: string; icon: typeof Menu; view: ViewMode }[] = [
   { label: "Artifacts", icon: Package, view: "artifacts" },
+  { label: "Roadmap", icon: Map, view: "roadmap" },
   { label: "AI Judge", icon: Shield, view: "judge" },
   { label: "Code Graph", icon: Network, view: "graph" },
 ];
@@ -69,6 +70,7 @@ type ChatMessage = {
   text: string;
   artifacts?: Artifact[];
   loading?: boolean;
+  fromRealtime?: boolean;
 };
 
 function Dashboard() {
@@ -87,35 +89,56 @@ function Dashboard() {
 
   // Team state
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [teamName, setTeamName] = useState<string>("");
-  const [teamCode, setTeamCode] = useState<string>("");
+  const [teamName, setTeamName] = useState("");
+  const [teamCode, setTeamCode] = useState("");
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [showJoinTeam, setShowJoinTeam] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "bot",
-      text: "Drop a problem statement and I'll generate hackathon-ready artifacts. Use the sidebar to access the AI Judge and Code Graph tools.",
-    },
-  ]);
+  const WELCOME: ChatMessage = {
+    role: "bot",
+    text: "Drop a problem statement and I'll generate hackathon-ready artifacts. Use the sidebar to access the Roadmap, AI Judge, and Code Graph.",
+  };
 
-  // Dark mode toggle
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+
+  // Dark mode
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  // Auto-scroll chat
+  // Auto-scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ── Fetch user's team on login ─────────────────────
+  // ── Realtime: listen for messages from CLI/other team members ──
+  useRealtimeMessages(sessionId, (msg) => {
+    // Only add if it's not from the current user (avoid duplicates)
+    if (msg.user_id === user?.id) return;
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: msg.is_ai ? "bot" : "user",
+        text: msg.content,
+        fromRealtime: true,
+      },
+    ]);
+  });
+
+  // ── Load team, session, history on login ───────────
   useEffect(() => {
     if (!user) {
       setTeamId(null);
       setTeamName("");
       setTeamCode("");
+      // Load from localStorage for guests
+      const localMessages = loadFromLocal();
+      if (localMessages.length > 0) {
+        setMessages([WELCOME, ...localMessages.map((m) => ({ role: m.role, text: m.text }))]);
+      }
+      const localArtifacts = loadArtifactsLocal();
+      if (localArtifacts.length > 0) setAllArtifacts(localArtifacts);
       return;
     }
 
@@ -132,7 +155,7 @@ function Dashboard() {
 
         setTeamId(tid);
 
-        // Get team details
+        // Team details
         const { data: team } = await supabase
           .from("teams")
           .select("name, team_code")
@@ -148,11 +171,11 @@ function Dashboard() {
         const sid = await getOrCreateSession(tid);
         if (sid) setSessionId(sid);
 
-        // Load persisted artifacts
+        // Load persisted artifacts from DB
         const saved = await loadArtifacts(tid);
         if (saved.length > 0) setAllArtifacts(saved);
 
-        // Load chat history
+        // Load chat history from DB — REPLACE default, don't append
         if (sid) {
           const history = await loadHistory(sid);
           if (history.length > 0) {
@@ -160,7 +183,7 @@ function Dashboard() {
               role: m.is_ai ? ("bot" as const) : ("user" as const),
               text: m.content,
             }));
-            setMessages((prev) => [...prev, ...restored]);
+            setMessages([WELCOME, ...restored]);
           }
         }
       } catch (err) {
@@ -180,16 +203,15 @@ function Dashboard() {
 
       setInput("");
       setSending(true);
-      setActiveView("artifacts"); // Switch to artifacts view on send
+      setActiveView("artifacts");
 
-      setMessages((m) => [
-        ...m,
-        { role: "user", text },
-        { role: "bot", text: "", loading: true },
-      ]);
+      const userMsg: ChatMessage = { role: "user", text };
+      const loadingMsg: ChatMessage = { role: "bot", text: "", loading: true };
+      setMessages((m) => [...m, userMsg, loadingMsg]);
 
-      if (sessionId && user) {
-        saveMessage(sessionId, text, false, user.id);
+      // Save user message to DB (with correct columns)
+      if (sessionId && teamId) {
+        saveMessage(sessionId, teamId, text, false, user?.id);
       }
 
       try {
@@ -202,29 +224,39 @@ function Dashboard() {
 
         const response: GeminiResponse = await callGemini(text, history);
 
-        setMessages((m) => [
-          ...m.slice(0, -1),
-          {
-            role: "bot",
-            text: response.message,
-            artifacts: response.artifacts,
-          },
-        ]);
+        const botMsg: ChatMessage = {
+          role: "bot",
+          text: response.message,
+          artifacts: response.artifacts,
+        };
+
+        setMessages((m) => [...m.slice(0, -1), botMsg]);
 
         if (response.artifacts.length > 0) {
           setAllArtifacts((prev) => [...response.artifacts, ...prev]);
 
-          // Persist artifacts to Supabase
+          // Persist artifacts to DB
           if (teamId) {
             for (const art of response.artifacts) {
-              saveArtifact(teamId, sessionId, art, user?.id);
+              saveArtifact(teamId, sessionId, art);
             }
           }
+          // Always save to localStorage too
+          saveArtifactsLocal([...response.artifacts, ...allArtifacts]);
         }
 
-        if (sessionId) {
-          saveMessage(sessionId, JSON.stringify(response), true);
+        // Save bot response to DB
+        if (sessionId && teamId) {
+          saveMessage(sessionId, teamId, response.message, true);
         }
+
+        // Always save to localStorage as fallback
+        const allMsgs = messages.filter((m) => !m.loading).concat([userMsg, botMsg]);
+        saveToLocal(
+          allMsgs
+            .filter((m) => m.role !== undefined)
+            .map((m) => ({ role: m.role, text: m.text }))
+        );
       } catch (err) {
         console.error("Gemini error:", err);
         setMessages((m) => [
@@ -236,10 +268,9 @@ function Dashboard() {
         textareaRef.current?.focus();
       }
     },
-    [input, sending, messages, sessionId, user, teamId]
+    [input, sending, messages, sessionId, user, teamId, allArtifacts]
   );
 
-  // ── Handle Enter key ──────────────────────────────
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -253,36 +284,34 @@ function Dashboard() {
     setTimeout(() => setCodeCopied(false), 2000);
   }
 
-  // ── Render ─────────────────────────────────────────
+  // ── RENDER ─────────────────────────────────────────
   return (
     <div className="flex h-screen w-full gap-4 overflow-hidden p-4">
-      {/* ── Left sidebar (nav) ──────────────────────── */}
+      {/* ── Sidebar ──────────────────────────────────── */}
       <aside
         className={`panel flex shrink-0 flex-col overflow-hidden p-3 transition-all duration-300 ${
           collapsed ? "w-[68px]" : "w-16 lg:w-60"
         }`}
       >
+        {/* Logo */}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          aria-label="Toggle menu"
           className="mb-4 flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-surface-2"
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
             <Sparkle className="size-4" />
           </span>
           {!collapsed && (
-            <span className="hidden font-semibold tracking-tight lg:inline">
-              GhostPM
-            </span>
+            <span className="hidden font-semibold tracking-tight lg:inline">GhostPM</span>
           )}
         </button>
 
-        {/* Main nav — view modes */}
+        {/* Nav */}
         <nav className="flex flex-col gap-1">
           {sidebarItems.map(({ label, icon: Icon, view }) => (
             <button
               key={label}
-              onClick={() => view && setActiveView(view)}
+              onClick={() => setActiveView(view)}
               className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
                 view === activeView
                   ? "bg-surface-2 text-foreground"
@@ -290,105 +319,74 @@ function Dashboard() {
               }`}
             >
               <Icon className="size-4 shrink-0" />
-              {!collapsed && (
-                <span className="hidden lg:inline">{label}</span>
-              )}
+              {!collapsed && <span className="hidden lg:inline">{label}</span>}
             </button>
           ))}
         </nav>
 
         {/* Team info */}
-        {user && teamId && (
-          <div className="mt-4 space-y-1">
-            {!collapsed && (
-              <div className="rounded-xl border border-border bg-surface-2/50 p-2.5">
-                <p className="hidden truncate text-[11px] font-semibold lg:block">
-                  {teamName || "Your Team"}
-                </p>
-                <div className="hidden items-center gap-1.5 lg:flex mt-1">
-                  <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest text-muted-foreground">
-                    {teamCode}
-                  </span>
-                  <button
-                    onClick={copyTeamCode}
-                    className="text-muted-foreground/60 hover:text-foreground"
-                    title="Copy team code"
-                  >
-                    {codeCopied ? (
-                      <Check className="size-3 text-emerald-500" />
-                    ) : (
-                      <Copy className="size-3" />
-                    )}
-                  </button>
-                </div>
+        {user && teamId && !collapsed && (
+          <div className="mt-4 space-y-2">
+            <div className="rounded-xl border border-border bg-surface-2/50 p-2.5">
+              <p className="hidden truncate text-[11px] font-semibold lg:block">
+                {teamName || "Your Team"}
+              </p>
+              <div className="hidden items-center gap-1.5 lg:flex mt-1">
+                <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest text-muted-foreground">
+                  {teamCode}
+                </span>
+                <button onClick={copyTeamCode} className="text-muted-foreground/60 hover:text-foreground" title="Copy team code">
+                  {codeCopied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                </button>
               </div>
-            )}
+            </div>
+            {/* CLI Banner */}
+            <div className="hidden lg:block">
+              <CliBanner teamId={teamId} teamCode={teamCode} />
+            </div>
           </div>
         )}
 
-        {/* User info / auth / team actions */}
-        {user ? (
-          <div className="mt-auto space-y-2">
-            {!teamId && !collapsed && (
-              <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-2.5">
-                <p className="hidden text-[11px] font-medium lg:block">No team yet</p>
-                <div className="mt-2 flex gap-1.5">
-                  <button
-                    onClick={() => setShowCreateTeam(true)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
-                  >
-                    <Plus className="size-3" />
-                    Create
-                  </button>
-                  <button
-                    onClick={() => setShowJoinTeam(true)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border px-2 py-1.5 text-[10px] font-medium hover:bg-surface-2"
-                  >
-                    <Users className="size-3" />
-                    Join
-                  </button>
-                </div>
-              </div>
-            )}
-            {!collapsed && (
-              <div className="rounded-xl bg-surface-2 p-3">
-                <p className="hidden truncate text-xs font-medium lg:block">
-                  {user.user_metadata?.full_name || user.email}
-                </p>
-                <p className="hidden truncate text-[11px] text-muted-foreground lg:block">
-                  {user.email}
-                </p>
-              </div>
-            )}
+        {/* No team prompt */}
+        {user && !teamId && !collapsed && (
+          <div className="mt-4 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-2.5">
+            <p className="hidden text-[11px] font-medium lg:block">No team yet</p>
+            <div className="mt-2 flex gap-1.5">
+              <button
+                onClick={() => setShowCreateTeam(true)}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+              >
+                <Plus className="size-3" /> Create
+              </button>
+              <button
+                onClick={() => setShowJoinTeam(true)}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border px-2 py-1.5 text-[10px] font-medium hover:bg-surface-2"
+              >
+                <Users className="size-3" /> Join
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="mt-auto space-y-2">
+        )}
+
+        {/* Guest auth */}
+        {!user && (
+          <div className="mt-auto">
             <div className="rounded-xl border border-border bg-surface-2 p-3">
               {!collapsed ? (
                 <>
                   <p className="hidden text-xs font-medium lg:block">Browsing as guest</p>
-                  <p className="hidden mt-1 text-[11px] text-muted-foreground lg:block">Sign in to save artifacts</p>
+                  <p className="hidden mt-1 text-[11px] text-muted-foreground lg:block">Sign in to save & sync</p>
                   <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => { setAuthMode("login"); setShowAuth(true); }}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium transition-colors hover:bg-surface"
-                    >
-                      <LogIn className="size-3" />
-                      Log in
+                    <button onClick={() => { setAuthMode("login"); setShowAuth(true); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium hover:bg-surface">
+                      <LogIn className="size-3" /> Log in
                     </button>
-                    <button
-                      onClick={() => { setAuthMode("signup"); setShowAuth(true); }}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                    >
-                      <UserPlus className="size-3" />
-                      Sign up
+                    <button onClick={() => { setAuthMode("signup"); setShowAuth(true); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90">
+                      <UserPlus className="size-3" /> Sign up
                     </button>
                   </div>
                 </>
               ) : (
-                <button
-                  onClick={() => { setAuthMode("login"); setShowAuth(true); }}
-                  className="mx-auto block">
+                <button onClick={() => { setAuthMode("login"); setShowAuth(true); }} className="mx-auto block">
                   <LogIn className="size-4 text-muted-foreground" />
                 </button>
               )}
@@ -396,39 +394,35 @@ function Dashboard() {
           </div>
         )}
 
-        <div className="mt-2 flex flex-col gap-1">
-          <button
-            onClick={() => setDark((d) => !d)}
-            aria-label="Toggle dark mode"
-            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-          >
-            {dark ? (
-              <Sun className="size-4 shrink-0" />
-            ) : (
-              <Moon className="size-4 shrink-0" />
-            )}
+        {/* User info + actions */}
+        {user && (
+          <div className="mt-auto space-y-2">
             {!collapsed && (
-              <span className="hidden lg:inline">
-                {dark ? "Light" : "Dark"}
-              </span>
+              <div className="rounded-xl bg-surface-2 p-3">
+                <p className="hidden truncate text-xs font-medium lg:block">
+                  {user.user_metadata?.full_name || user.email}
+                </p>
+                <p className="hidden truncate text-[11px] text-muted-foreground lg:block">{user.email}</p>
+              </div>
             )}
-          </button>
+          </div>
+        )}
 
+        <div className="mt-2 flex flex-col gap-1">
+          <button onClick={() => setDark((d) => !d)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground">
+            {dark ? <Sun className="size-4 shrink-0" /> : <Moon className="size-4 shrink-0" />}
+            {!collapsed && <span className="hidden lg:inline">{dark ? "Light" : "Dark"}</span>}
+          </button>
           {user && (
-            <button
-              onClick={() => signOut()}
-              className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-            >
+            <button onClick={() => signOut()} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground">
               <LogOut className="size-4 shrink-0" />
-              {!collapsed && (
-                <span className="hidden lg:inline">Sign out</span>
-              )}
+              {!collapsed && <span className="hidden lg:inline">Sign out</span>}
             </button>
           )}
         </div>
       </aside>
 
-      {/* ── Left chat pane ──────────────────────────── */}
+      {/* ── Chat pane ────────────────────────────────── */}
       <section className="panel flex w-[380px] shrink-0 flex-col overflow-hidden p-4 max-md:hidden">
         <header className="flex items-center gap-3 border-b border-border pb-3">
           <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
@@ -437,32 +431,31 @@ function Dashboard() {
           <div>
             <p className="text-sm font-semibold">GhostPM Chat</p>
             <p className="text-[11px] text-muted-foreground">
-              Ask anything → get structured artifacts
+              {sessionId ? "Session active · syncing to DB" : "Local mode · sign in to sync"}
             </p>
           </div>
         </header>
 
-        {/* Messages */}
         <div className="flex-1 space-y-3 overflow-y-auto py-4">
           {messages.map((m, i) => (
-            <div
-              key={i}
-              className={m.role === "user" ? "flex justify-end" : "flex"}
-            >
-              <div
-                className={`max-w-[90%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
-                  m.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-surface-2 text-foreground"
-                }`}
-              >
+            <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
+              <div className={`max-w-[90%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                m.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-2 text-foreground"
+              }`}>
                 {m.loading ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="size-3 animate-spin" />
                     <span className="text-muted-foreground">Generating artifacts...</span>
                   </div>
                 ) : (
-                  m.text
+                  <>
+                    {m.text}
+                    {m.fromRealtime && (
+                      <span className="ml-1 text-[9px] text-muted-foreground/50">(from teammate)</span>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -473,19 +466,12 @@ function Dashboard() {
         {/* Quick actions */}
         <div className="mb-3 flex flex-wrap gap-2">
           {["Pitch deck", "Tech spec", "Roadmap", "Scorecard"].map((c) => (
-            <button
-              key={c}
-              onClick={() =>
-                setInput(`Generate a ${c.toLowerCase()} for: `)
-              }
-              className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-            >
+            <button key={c} onClick={() => setInput(`Generate a ${c.toLowerCase()} for: `)} className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground">
               {c}
             </button>
           ))}
         </div>
 
-        {/* Input */}
         <form onSubmit={send} className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -497,22 +483,13 @@ function Dashboard() {
             disabled={sending}
             className="flex-1 resize-none rounded-xl border border-input bg-surface-2 px-3 py-2 text-xs outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring disabled:opacity-50"
           />
-          <button
-            type="submit"
-            aria-label="Send"
-            disabled={sending}
-            className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {sending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+          <button type="submit" disabled={sending} className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">
+            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </form>
       </section>
 
-      {/* ── Center pane (switches between views) ──── */}
+      {/* ── Center pane ──────────────────────────────── */}
       <main className="stage flex min-w-0 flex-1 flex-col overflow-hidden">
         {activeView === "artifacts" && (
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
@@ -521,24 +498,17 @@ function Dashboard() {
                 <div className="grid size-20 place-items-center rounded-3xl border border-border bg-surface/50">
                   <Package className="size-10 text-muted-foreground/40" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    No artifacts yet
-                  </p>
-                  <p className="mt-1 max-w-xs text-xs text-muted-foreground/70">
-                    Send a problem statement in the chat to generate pitch decks,
-                    specs, and architecture docs.
-                  </p>
-                </div>
+                <p className="text-sm font-medium text-muted-foreground">No artifacts yet</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground/70">
+                  Send a problem statement in the chat to generate pitch decks, specs, and architecture docs.
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-muted-foreground">
                     Generated Artifacts
-                    <span className="ml-2 rounded-md bg-surface-2 px-2 py-0.5 text-[10px]">
-                      {allArtifacts.length}
-                    </span>
+                    <span className="ml-2 rounded-md bg-surface-2 px-2 py-0.5 text-[10px]">{allArtifacts.length}</span>
                   </h2>
                 </div>
                 <ArtifactGrid artifacts={allArtifacts} />
@@ -548,16 +518,12 @@ function Dashboard() {
         )}
 
         {activeView === "judge" && <JudgePanel />}
-
         {activeView === "graph" && <CodeGraphPanel />}
+        {activeView === "roadmap" && <RoadmapPanel teamId={teamId} />}
       </main>
 
       {/* ── Modals ────────────────────────────────── */}
-      <AuthModal
-        open={showAuth}
-        onClose={() => setShowAuth(false)}
-        defaultMode={authMode}
-      />
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} defaultMode={authMode} />
 
       <CreateTeamModal
         open={showCreateTeam}
@@ -565,15 +531,9 @@ function Dashboard() {
         onCreated={(tid, code) => {
           setTeamId(tid);
           setTeamCode(code);
-          // Fetch team name
-          supabase
-            .from("teams")
-            .select("name")
-            .eq("id", tid)
-            .single()
-            .then(({ data }) => {
-              if (data) setTeamName(data.name);
-            });
+          supabase.from("teams").select("name").eq("id", tid).single().then(({ data }) => {
+            if (data) setTeamName(data.name);
+          });
         }}
       />
 
@@ -582,17 +542,9 @@ function Dashboard() {
         onClose={() => setShowJoinTeam(false)}
         onJoined={(tid) => {
           setTeamId(tid);
-          supabase
-            .from("teams")
-            .select("name, team_code")
-            .eq("id", tid)
-            .single()
-            .then(({ data }) => {
-              if (data) {
-                setTeamName(data.name);
-                setTeamCode(data.team_code);
-              }
-            });
+          supabase.from("teams").select("name, team_code").eq("id", tid).single().then(({ data }) => {
+            if (data) { setTeamName(data.name); setTeamCode(data.team_code); }
+          });
         }}
       />
     </div>

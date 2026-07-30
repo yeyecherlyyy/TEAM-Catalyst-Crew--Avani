@@ -2,11 +2,13 @@
 import { supabase } from "./supabase";
 import type { Artifact } from "./gemini";
 
+const LOCAL_ARTIFACTS_KEY = "ghostpm_artifacts";
+
+// ── Save to Supabase ─────────────────────────────────
 export async function saveArtifact(
   teamId: string,
   sessionId: string | null,
-  artifact: Artifact,
-  userId?: string
+  artifact: Artifact
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
@@ -24,7 +26,6 @@ export async function saveArtifact(
           confidence: artifact.confidence,
           original_type: artifact.type,
         },
-        created_by: userId || null,
       })
       .select("id")
       .single();
@@ -40,6 +41,7 @@ export async function saveArtifact(
   }
 }
 
+// ── Load from Supabase ───────────────────────────────
 export async function loadArtifacts(teamId: string): Promise<Artifact[]> {
   try {
     const { data, error } = await supabase
@@ -76,7 +78,23 @@ export async function deleteArtifact(artifactId: string): Promise<boolean> {
   }
 }
 
-// Map our frontend types to the DB enum
+// ── localStorage fallback (for guests/no team) ───────
+export function saveArtifactsLocal(artifacts: Artifact[]) {
+  try {
+    localStorage.setItem(LOCAL_ARTIFACTS_KEY, JSON.stringify(artifacts));
+  } catch {}
+}
+
+export function loadArtifactsLocal(): Artifact[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ARTIFACTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// ── Type mapping (frontend ↔ DB enum) ────────────────
 function mapTypeToEnum(type: string): string {
   const map: Record<string, string> = {
     pitch_deck: "brief",
