@@ -15,47 +15,52 @@ import {
   LogIn,
   UserPlus,
   Package,
+  Shield,
+  Network,
+  Users,
+  Plus,
+  Copy,
+  Check,
 } from "lucide-react";
 import { AuthModal } from "../components/auth-gate";
 import { ArtifactGrid } from "../components/artifact-card";
+import { CreateTeamModal, JoinTeamModal } from "../components/team-modals";
+import { JudgePanel } from "../components/judge-panel";
+import { CodeGraphPanel } from "../components/code-graph";
 import { useAuth } from "../lib/auth";
 import { callGemini, type Artifact, type GeminiResponse } from "../lib/gemini";
+import { saveArtifact, loadArtifacts } from "../lib/artifacts";
 import {
   getOrCreateSession,
   saveMessage,
   loadHistory,
-  toGeminiHistory,
 } from "../lib/memory";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/")(  {
   head: () => ({
     meta: [
-      { title: "GhostPM — Hackathon Artifact Studio" },
+      { title: "GhostPM — Hackathon Command Center" },
       {
         name: "description",
         content:
-          "AI-powered hackathon project manager: turn problem statements into pitch-ready artifacts in seconds.",
+          "AI-powered hackathon project manager: turn problem statements into pitch-ready artifacts, practice with an AI judge, and visualize your codebase.",
       },
-      { property: "og:title", content: "GhostPM — Hackathon Artifact Studio" },
-      {
-        property: "og:description",
-        content:
-          "Turn hackathon problem statements into pitch decks, specs and code scaffolds in seconds.",
-      },
+      { property: "og:title", content: "GhostPM — Hackathon Command Center" },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Dashboard,
 });
 
+// ── View modes for the center pane ───────────────────
+type ViewMode = "artifacts" | "judge" | "graph";
+
 // ── Sidebar menu items ───────────────────────────────
-const menuItems = [
-  { label: "Menu", icon: Menu },
-  { label: "History", icon: History },
-  { label: "Projects", icon: Rocket },
-  { label: "Leaderboard", icon: Trophy },
-  { label: "Settings", icon: Settings },
+const sidebarItems: { label: string; icon: typeof Menu; view?: ViewMode }[] = [
+  { label: "Artifacts", icon: Package, view: "artifacts" },
+  { label: "AI Judge", icon: Shield, view: "judge" },
+  { label: "Code Graph", icon: Network, view: "graph" },
 ];
 
 // ── Chat message type ────────────────────────────────
@@ -69,20 +74,29 @@ type ChatMessage = {
 function Dashboard() {
   const { user, signOut } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [dark, setDark] = useState(true); // default dark mode
+  const [dark, setDark] = useState(true);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [activeView, setActiveView] = useState<ViewMode>("artifacts");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Team state
+  const [teamId, setTeamId] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState<string>("");
+  const [teamCode, setTeamCode] = useState<string>("");
+  const [showCreateTeam, setShowCreateTeam] = useState(false);
+  const [showJoinTeam, setShowJoinTeam] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "bot",
-      text: "Drop a problem statement and I'll generate hackathon-ready artifacts: pitch deck, tech spec, architecture, and more.",
+      text: "Drop a problem statement and I'll generate hackathon-ready artifacts. Use the sidebar to access the AI Judge and Code Graph tools.",
     },
   ]);
 
@@ -96,45 +110,65 @@ function Dashboard() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Initialize session and load history
+  // ── Fetch user's team on login ─────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setTeamId(null);
+      setTeamName("");
+      setTeamCode("");
+      return;
+    }
 
-    // For now, use a hardcoded team ID approach
-    // In production, this would come from the team selection flow
-    async function initSession() {
+    async function fetchTeam() {
       try {
-        // Try to get team memberships
-        const { data: memberships } = await (
-          await import("../lib/supabase")
-        ).supabase
+        const { data: memberships } = await supabase
           .from("team_members")
           .select("team_id")
           .eq("user_id", user!.id)
           .limit(1);
 
-        const teamId = memberships?.[0]?.team_id;
-        if (!teamId) return;
+        const tid = memberships?.[0]?.team_id;
+        if (!tid) return;
 
-        const sid = await getOrCreateSession(teamId);
-        if (!sid) return;
-        setSessionId(sid);
+        setTeamId(tid);
 
-        // Load existing history
-        const history = await loadHistory(sid);
-        if (history.length > 0) {
-          const restored: ChatMessage[] = history.map((m) => ({
-            role: m.is_ai ? ("bot" as const) : ("user" as const),
-            text: m.content,
-          }));
-          setMessages((prev) => [...prev, ...restored]);
+        // Get team details
+        const { data: team } = await supabase
+          .from("teams")
+          .select("name, team_code")
+          .eq("id", tid)
+          .single();
+
+        if (team) {
+          setTeamName(team.name);
+          setTeamCode(team.team_code);
+        }
+
+        // Init session
+        const sid = await getOrCreateSession(tid);
+        if (sid) setSessionId(sid);
+
+        // Load persisted artifacts
+        const saved = await loadArtifacts(tid);
+        if (saved.length > 0) setAllArtifacts(saved);
+
+        // Load chat history
+        if (sid) {
+          const history = await loadHistory(sid);
+          if (history.length > 0) {
+            const restored: ChatMessage[] = history.map((m) => ({
+              role: m.is_ai ? ("bot" as const) : ("user" as const),
+              text: m.content,
+            }));
+            setMessages((prev) => [...prev, ...restored]);
+          }
         }
       } catch (err) {
-        console.warn("Session init skipped:", err);
+        console.warn("Team init skipped:", err);
       }
     }
 
-    initSession();
+    fetchTeam();
   }, [user]);
 
   // ── Send message ───────────────────────────────────
@@ -146,21 +180,19 @@ function Dashboard() {
 
       setInput("");
       setSending(true);
+      setActiveView("artifacts"); // Switch to artifacts view on send
 
-      // Add user message + loading indicator
       setMessages((m) => [
         ...m,
         { role: "user", text },
         { role: "bot", text: "", loading: true },
       ]);
 
-      // Save user message to memory
       if (sessionId && user) {
         saveMessage(sessionId, text, false, user.id);
       }
 
       try {
-        // Build conversation history from current messages
         const history = messages
           .filter((m) => !m.loading)
           .map((m) => ({
@@ -170,9 +202,8 @@ function Dashboard() {
 
         const response: GeminiResponse = await callGemini(text, history);
 
-        // Remove loading, add AI response
         setMessages((m) => [
-          ...m.slice(0, -1), // remove loading
+          ...m.slice(0, -1),
           {
             role: "bot",
             text: response.message,
@@ -180,12 +211,17 @@ function Dashboard() {
           },
         ]);
 
-        // Add artifacts to the center pane collection
         if (response.artifacts.length > 0) {
           setAllArtifacts((prev) => [...response.artifacts, ...prev]);
+
+          // Persist artifacts to Supabase
+          if (teamId) {
+            for (const art of response.artifacts) {
+              saveArtifact(teamId, sessionId, art, user?.id);
+            }
+          }
         }
 
-        // Save AI response to memory
         if (sessionId) {
           saveMessage(sessionId, JSON.stringify(response), true);
         }
@@ -193,17 +229,14 @@ function Dashboard() {
         console.error("Gemini error:", err);
         setMessages((m) => [
           ...m.slice(0, -1),
-          {
-            role: "bot",
-            text: "Something went wrong. Please try again.",
-          },
+          { role: "bot", text: "Something went wrong. Please try again." },
         ]);
       } finally {
         setSending(false);
         textareaRef.current?.focus();
       }
     },
-    [input, sending, messages, sessionId, user]
+    [input, sending, messages, sessionId, user, teamId]
   );
 
   // ── Handle Enter key ──────────────────────────────
@@ -212,6 +245,12 @@ function Dashboard() {
       e.preventDefault();
       send(e as unknown as React.FormEvent);
     }
+  }
+
+  function copyTeamCode() {
+    navigator.clipboard.writeText(teamCode);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
   }
 
   // ── Render ─────────────────────────────────────────
@@ -238,12 +277,14 @@ function Dashboard() {
           )}
         </button>
 
+        {/* Main nav — view modes */}
         <nav className="flex flex-col gap-1">
-          {menuItems.map(({ label, icon: Icon }, i) => (
+          {sidebarItems.map(({ label, icon: Icon, view }) => (
             <button
               key={label}
+              onClick={() => view && setActiveView(view)}
               className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
-                i === 0
+                view === activeView
                   ? "bg-surface-2 text-foreground"
                   : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
               }`}
@@ -256,22 +297,70 @@ function Dashboard() {
           ))}
         </nav>
 
-        {/* User info or login/signup */}
-        {user ? (
-          <>
+        {/* Team info */}
+        {user && teamId && (
+          <div className="mt-4 space-y-1">
             {!collapsed && (
-              <div className="mt-auto space-y-2">
-                <div className="rounded-xl bg-surface-2 p-3">
-                  <p className="hidden truncate text-xs font-medium lg:block">
-                    {user.user_metadata?.full_name || user.email}
-                  </p>
-                  <p className="hidden truncate text-[11px] text-muted-foreground lg:block">
-                    {user.email}
-                  </p>
+              <div className="rounded-xl border border-border bg-surface-2/50 p-2.5">
+                <p className="hidden truncate text-[11px] font-semibold lg:block">
+                  {teamName || "Your Team"}
+                </p>
+                <div className="hidden items-center gap-1.5 lg:flex mt-1">
+                  <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest text-muted-foreground">
+                    {teamCode}
+                  </span>
+                  <button
+                    onClick={copyTeamCode}
+                    className="text-muted-foreground/60 hover:text-foreground"
+                    title="Copy team code"
+                  >
+                    {codeCopied ? (
+                      <Check className="size-3 text-emerald-500" />
+                    ) : (
+                      <Copy className="size-3" />
+                    )}
+                  </button>
                 </div>
               </div>
             )}
-          </>
+          </div>
+        )}
+
+        {/* User info / auth / team actions */}
+        {user ? (
+          <div className="mt-auto space-y-2">
+            {!teamId && !collapsed && (
+              <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-2.5">
+                <p className="hidden text-[11px] font-medium lg:block">No team yet</p>
+                <div className="mt-2 flex gap-1.5">
+                  <button
+                    onClick={() => setShowCreateTeam(true)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+                  >
+                    <Plus className="size-3" />
+                    Create
+                  </button>
+                  <button
+                    onClick={() => setShowJoinTeam(true)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border px-2 py-1.5 text-[10px] font-medium hover:bg-surface-2"
+                  >
+                    <Users className="size-3" />
+                    Join
+                  </button>
+                </div>
+              </div>
+            )}
+            {!collapsed && (
+              <div className="rounded-xl bg-surface-2 p-3">
+                <p className="hidden truncate text-xs font-medium lg:block">
+                  {user.user_metadata?.full_name || user.email}
+                </p>
+                <p className="hidden truncate text-[11px] text-muted-foreground lg:block">
+                  {user.email}
+                </p>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="mt-auto space-y-2">
             <div className="rounded-xl border border-border bg-surface-2 p-3">
@@ -423,44 +512,88 @@ function Dashboard() {
         </form>
       </section>
 
-      {/* ── Center: Artifacts ONLY ──────────────────── */}
-      <main className="stage flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-6 py-6">
-        {allArtifacts.length === 0 ? (
-          /* Empty state — subtle, no hero text */
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-            <div className="grid size-20 place-items-center rounded-3xl border border-border bg-surface/50">
-              <Package className="size-10 text-muted-foreground/40" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                No artifacts yet
-              </p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground/70">
-                Send a problem statement in the chat to generate pitch decks,
-                specs, and architecture docs.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground">
-                Generated Artifacts
-                <span className="ml-2 rounded-md bg-surface-2 px-2 py-0.5 text-[10px]">
-                  {allArtifacts.length}
-                </span>
-              </h2>
-            </div>
-            <ArtifactGrid artifacts={allArtifacts} />
+      {/* ── Center pane (switches between views) ──── */}
+      <main className="stage flex min-w-0 flex-1 flex-col overflow-hidden">
+        {activeView === "artifacts" && (
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
+            {allArtifacts.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center h-full">
+                <div className="grid size-20 place-items-center rounded-3xl border border-border bg-surface/50">
+                  <Package className="size-10 text-muted-foreground/40" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No artifacts yet
+                  </p>
+                  <p className="mt-1 max-w-xs text-xs text-muted-foreground/70">
+                    Send a problem statement in the chat to generate pitch decks,
+                    specs, and architecture docs.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-muted-foreground">
+                    Generated Artifacts
+                    <span className="ml-2 rounded-md bg-surface-2 px-2 py-0.5 text-[10px]">
+                      {allArtifacts.length}
+                    </span>
+                  </h2>
+                </div>
+                <ArtifactGrid artifacts={allArtifacts} />
+              </div>
+            )}
           </div>
         )}
+
+        {activeView === "judge" && <JudgePanel />}
+
+        {activeView === "graph" && <CodeGraphPanel />}
       </main>
 
-      {/* Auth modal — only shown when user clicks login/signup */}
+      {/* ── Modals ────────────────────────────────── */}
       <AuthModal
         open={showAuth}
         onClose={() => setShowAuth(false)}
         defaultMode={authMode}
+      />
+
+      <CreateTeamModal
+        open={showCreateTeam}
+        onClose={() => setShowCreateTeam(false)}
+        onCreated={(tid, code) => {
+          setTeamId(tid);
+          setTeamCode(code);
+          // Fetch team name
+          supabase
+            .from("teams")
+            .select("name")
+            .eq("id", tid)
+            .single()
+            .then(({ data }) => {
+              if (data) setTeamName(data.name);
+            });
+        }}
+      />
+
+      <JoinTeamModal
+        open={showJoinTeam}
+        onClose={() => setShowJoinTeam(false)}
+        onJoined={(tid) => {
+          setTeamId(tid);
+          supabase
+            .from("teams")
+            .select("name, team_code")
+            .eq("id", tid)
+            .single()
+            .then(({ data }) => {
+              if (data) {
+                setTeamName(data.name);
+                setTeamCode(data.team_code);
+              }
+            });
+        }}
       />
     </div>
   );
