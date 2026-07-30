@@ -7,8 +7,8 @@ packages = ["ghost_pm"]
 
 [project]
 name = "ghostpm"
-version = "0.1.0"
-description = "Headless CLI project manager for 24-hour hackathons"
+version = "2.0.0"
+description = "AI-powered CLI project manager for hackathon teams — interactive terminal, real-time sync, and intelligent advice"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -25,6 +25,9 @@ dependencies = [
     "pydantic>=2.0",
     "pydantic-ai>=0.1",
     
+    # Google Gemini SDK (for AI advisor)
+    "google-genai>=1.0",
+    
     # Supabase client
     "supabase>=2.0",
     
@@ -34,14 +37,8 @@ dependencies = [
     # Code graph (graphify)
     "graphifyy>=0.1",
     
-    # Background daemon
-    "watchdog>=4.0",
-    
     # Environment config
     "python-dotenv>=1.0",
-    
-    # TUI dashboard
-    "textual>=0.50",
 ]
 
 [project.optional-dependencies]

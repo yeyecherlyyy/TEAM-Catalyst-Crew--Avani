@@ -133,6 +133,13 @@ async def llm_scope_check(
         from pydantic_ai import Agent
         from typing import Literal
 
+        # Inject API key into environment so pydantic-ai can find it
+        import os
+        if config.gemini_api_key:
+            os.environ["GEMINI_API_KEY"] = config.gemini_api_key
+        if config.openai_api_key:
+            os.environ["OPENAI_API_KEY"] = config.openai_api_key
+
         class ScopeVerdict(BaseModel):
             allowed: bool
             reason: str
