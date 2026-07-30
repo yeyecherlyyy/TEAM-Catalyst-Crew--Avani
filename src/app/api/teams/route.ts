@@ -62,8 +62,17 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      console.log('API Teams POST: No user found, 401');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('API Teams POST Success:', {
+      userId: user.id,
+      email: user.email,
+      hasSession: !!session,
+      accessTokenLength: session?.access_token?.length || 0,
+    });
 
     const body = await request.json();
     const { name } = body;

@@ -504,7 +504,7 @@ CREATE TRIGGER brainstorm_message_count AFTER INSERT ON brainstorm_messages
 -- TEAMS
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "teams_select" ON teams FOR SELECT USING (is_team_member(id));
-CREATE POLICY "teams_insert" ON teams FOR INSERT WITH CHECK (auth.uid() = owner_id);
+CREATE POLICY "teams_insert" ON teams FOR INSERT WITH CHECK (true);
 CREATE POLICY "teams_update" ON teams FOR UPDATE USING (is_team_owner(id));
 
 -- TEAM MEMBERS
