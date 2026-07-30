@@ -10,6 +10,38 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- ============================================================
+-- CLEANUP EXISTING TABLES & TYPES (Idempotency)
+-- ============================================================
+DROP TABLE IF EXISTS ai_advice_log CASCADE;
+DROP TABLE IF EXISTS code_graph_snapshots CASCADE;
+DROP TABLE IF EXISTS commits CASCADE;
+DROP TABLE IF EXISTS shared_resources CASCADE;
+DROP TABLE IF EXISTS artifacts CASCADE;
+DROP TABLE IF EXISTS resources CASCADE;
+DROP TABLE IF EXISTS shared_documents CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS progress_checkins CASCADE;
+DROP TABLE IF EXISTS roadmap_tasks CASCADE;
+DROP TABLE IF EXISTS roadmaps CASCADE;
+DROP TABLE IF EXISTS nudges CASCADE;
+DROP TABLE IF EXISTS brainstorm_messages CASCADE;
+DROP TABLE IF EXISTS brainstorm_sessions CASCADE;
+DROP TABLE IF EXISTS ideas CASCADE;
+DROP TABLE IF EXISTS ratings CASCADE;
+DROP TABLE IF EXISTS problem_statements CASCADE;
+DROP TABLE IF EXISTS team_members CASCADE;
+DROP TABLE IF EXISTS teams CASCADE;
+
+DROP TYPE IF EXISTS brainstorm_classification CASCADE;
+DROP TYPE IF EXISTS notification_type CASCADE;
+DROP TYPE IF EXISTS task_status CASCADE;
+DROP TYPE IF EXISTS nudge_severity CASCADE;
+DROP TYPE IF EXISTS artifact_type CASCADE;
+DROP TYPE IF EXISTS duration_bracket CASCADE;
+DROP TYPE IF EXISTS hackathon_format CASCADE;
+DROP TYPE IF EXISTS team_role CASCADE;
+
+-- ============================================================
 -- ENUMS
 -- ============================================================
 CREATE TYPE team_role AS ENUM ('owner', 'member');
