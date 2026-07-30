@@ -317,7 +317,7 @@ RETURNS BOOLEAN AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
--- Helper function: check team ownership
+-- Helper function:-- Check team ownership
 CREATE OR REPLACE FUNCTION is_team_owner(check_team_id UUID)
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
@@ -326,9 +326,33 @@ RETURNS BOOLEAN AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
+-- Securely join a team by code
+CREATE OR REPLACE FUNCTION join_team_by_code(p_team_code TEXT)
+RETURNS UUID AS $$
+DECLARE
+  v_team_id UUID;
+BEGIN
+  -- Find the team (runs as SECURITY DEFINER so it bypasses RLS)
+  SELECT id INTO v_team_id FROM teams WHERE team_code = p_team_code;
+  
+  IF v_team_id IS NOT NULL THEN
+    -- Insert into team_members if not already there
+    INSERT INTO team_members (team_id, user_id, role)
+    VALUES (v_team_id, auth.uid(), 'member')
+    ON CONFLICT (team_id, user_id) DO NOTHING;
+    
+    RETURN v_team_id;
+  END IF;
+  
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- TEAMS
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "teams_select" ON teams FOR SELECT USING (is_team_member(id));
+CREATE POLICY "teams_select" ON teams FOR SELECT USING (
+  auth.uid() = owner_id OR is_team_member(id)
+);
 CREATE POLICY "teams_insert" ON teams FOR INSERT WITH CHECK (true);
 CREATE POLICY "teams_update" ON teams FOR UPDATE USING (is_team_owner(id));
 

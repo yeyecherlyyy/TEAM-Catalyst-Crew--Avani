@@ -226,39 +226,14 @@ export function JoinTeamModal({ open, onClose, onJoined }: JoinTeamModalProps) {
     setError("");
 
     try {
-      // Find team by code
-      const { data: team, error: teamErr } = await supabase
-        .from("teams")
-        .select("id")
-        .eq("team_code", code.trim().toUpperCase())
-        .single();
-
-      if (teamErr || !team) throw new Error("Team not found. Check the code and try again.");
-
-      // Check if already a member
-      const { data: existing } = await supabase
-        .from("team_members")
-        .select("id")
-        .eq("team_id", team.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existing) {
-        onJoined(team.id);
-        onClose();
-        return;
-      }
-
-      // Join team
-      const { error: joinErr } = await supabase.from("team_members").insert({
-        team_id: team.id,
-        user_id: user.id,
-        role: "member",
-      });
+      // Use the secure RPC to join the team by code
+      const { data: teamId, error: joinErr } = await supabase
+        .rpc("join_team_by_code", { p_team_code: code.trim().toUpperCase() });
 
       if (joinErr) throw new Error(joinErr.message);
+      if (!teamId) throw new Error("Team not found. Check the code and try again.");
 
-      onJoined(team.id);
+      onJoined(teamId);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join team");
