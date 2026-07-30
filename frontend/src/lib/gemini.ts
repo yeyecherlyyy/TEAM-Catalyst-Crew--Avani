@@ -6,6 +6,10 @@ const GEMINI_KEYS = [
   import.meta.env.VITE_GEMINI_KEY_2,
   import.meta.env.VITE_GEMINI_KEY_3,
   import.meta.env.VITE_GEMINI_KEY_4,
+  import.meta.env.VITE_GEMINI_KEY_5,
+  import.meta.env.VITE_GEMINI_KEY_6,
+  import.meta.env.VITE_GEMINI_KEY_7,
+  import.meta.env.VITE_GEMINI_KEY_8,
 ].filter(Boolean) as string[];
 
 if (GEMINI_KEYS.length === 0) {
@@ -33,10 +37,9 @@ export type ArtifactType =
 
 export interface ArtifactSection {
   heading: string;
-  bullets?: string[];
   body?: string;
+  bullets?: string[];
   code?: string;
-  language?: string;
 }
 
 export interface Artifact {
@@ -45,7 +48,7 @@ export interface Artifact {
   summary: string;
   sections: ArtifactSection[];
   tags?: string[];
-  confidence?: number; // 0-100
+  confidence?: number;
 }
 
 export interface GeminiResponse {
@@ -53,40 +56,49 @@ export interface GeminiResponse {
   artifacts: Artifact[];
 }
 
-// ── System prompt ────────────────────────────────────
-const SYSTEM_PROMPT = `You are GhostPM, a hackathon project manager AI. When the user gives you a problem statement or asks about their hackathon project, you MUST respond in STRICT JSON only.
+// ── System Prompt ────────────────────────────────────
+const SYSTEM_PROMPT = `You are GhostPM — a senior hackathon product manager and strategist.
 
-Your response format MUST be:
+RESPONSE FORMAT — you MUST return ONLY a single valid JSON object:
 {
-  "message": "A brief conversational reply (1-2 sentences max)",
-  "artifacts": [
+  "message": "<your conversational reply — be helpful, concise, max 3 sentences>",
+  "artifacts": [ ...array of artifact objects, or empty [] ]
+}
+
+ARTIFACT GENERATION RULES:
+1. Generate artifacts ONLY when the user provides a problem statement, project idea, or explicitly asks for a deliverable (e.g., "make me a pitch deck", "give me a roadmap").
+2. For casual conversation, follow-up questions, greetings, or clarifications — set "artifacts" to []. Just respond with a helpful "message".
+3. Generate AT MOST 2 artifacts per response. Pick the 2 most relevant.
+4. Each artifact must be genuinely useful and hackathon-ready. No filler content.
+5. Keep each artifact FOCUSED — maximum 4 sections per artifact. Each section should have EITHER "body" text OR "bullets" (not both unless truly needed). Use "code" only for actual code snippets.
+6. Sections should contain real, actionable content — not generic advice.
+
+ARTIFACT OBJECT SHAPE:
+{
+  "type": "pitch_deck" | "tech_spec" | "architecture" | "demo_script" | "scorecard" | "roadmap" | "solution_brief" | "user_stories",
+  "title": "Short descriptive title",
+  "summary": "One-line summary of what this artifact covers",
+  "confidence": 75-99,
+  "tags": ["2-4 relevant tags"],
+  "sections": [
     {
-      "type": "pitch_deck" | "tech_spec" | "architecture" | "demo_script" | "scorecard" | "roadmap" | "solution_brief" | "user_stories",
-      "title": "Artifact title",
-      "summary": "One-line summary",
-      "sections": [
-        {
-          "heading": "Section heading",
-          "bullets": ["point 1", "point 2"],
-          "body": "Optional paragraph text",
-          "code": "Optional code block",
-          "language": "Optional language for code"
-        }
-      ],
-      "tags": ["tag1", "tag2"],
-      "confidence": 85
+      "heading": "Section Title",
+      "body": "Paragraph of content (use for explanations)",
+      "bullets": ["Use for lists of points"],
+      "code": "Use ONLY for actual code"
     }
   ]
 }
 
-Rules:
-- ALWAYS respond with valid JSON. No markdown, no plain text.
-- Generate 1-3 artifacts per response depending on the query.
-- For problem statements: generate pitch_deck + tech_spec + architecture.
-- For implementation questions: generate tech_spec or roadmap.
-- For review requests: generate scorecard.
-- Keep each artifact actionable and hackathon-ready.
-- confidence is 0-100 reflecting how well the artifact matches the query.`;
+TYPE SELECTION GUIDE:
+- Problem statement → "solution_brief" (what to build) + "architecture" (how to build it)
+- "Pitch deck" request → "pitch_deck"
+- Technical question → "tech_spec"
+- Planning question → "roadmap"
+- Review/feedback → "scorecard"
+- User flow question → "user_stories"
+
+CRITICAL: Return ONLY the JSON object. No markdown fences, no explanation outside the JSON.`;
 
 // ── Chat history format for context ──────────────────
 interface ChatEntry {
@@ -106,9 +118,6 @@ export async function callGemini(
     };
   }
 
-  const apiKey = nextKey();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
   // Build contents array with history
   const contents = [
     // System instruction as first user turn
@@ -118,8 +127,7 @@ export async function callGemini(
       parts: [
         {
           text: JSON.stringify({
-            message:
-              "Understood. I will respond in strict JSON with artifacts.",
+            message: "Ready. I'll respond in strict JSON and only generate artifacts when you share a problem statement or request a deliverable.",
             artifacts: [],
           }),
         },
@@ -137,10 +145,10 @@ export async function callGemini(
   // Try all keys before giving up
   let lastError = "";
   for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
-    const key = attempt === 0 ? apiKey : nextKey();
+    const key = nextKey();
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -148,20 +156,18 @@ export async function callGemini(
             contents,
             generationConfig: {
               responseMimeType: "application/json",
-              temperature: 0.7,
-              maxOutputTokens: 8192,
+              temperature: 0.6,
+              maxOutputTokens: 4096,
             },
           }),
         }
       );
 
       if (res.status === 429) {
-        // Rate limited — parse retry delay
         try {
           const errData = await res.json();
           const retryDetail = errData?.error?.details?.find(
-            (d: { "@type": string }) =>
-              d["@type"]?.includes("RetryInfo")
+            (d: { "@type": string }) => d["@type"]?.includes("RetryInfo")
           );
           const retryDelay = retryDetail?.retryDelay ?? "30s";
           const isDailyQuota = errData?.error?.message?.includes("PerDay");
@@ -172,7 +178,6 @@ export async function callGemini(
         } catch {
           lastError = `Rate limited on key ${attempt + 1}.`;
         }
-        // Wait briefly before trying next key
         await new Promise((r) => setTimeout(r, 1000));
         continue;
       }
@@ -185,19 +190,30 @@ export async function callGemini(
       }
 
       const data = await res.json();
-      const text =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
       // Parse JSON response
-      const parsed: GeminiResponse = JSON.parse(text);
-      return parsed;
+      try {
+        const parsed: GeminiResponse = JSON.parse(text);
+        // Validate structure
+        if (!parsed.message && !parsed.artifacts) {
+          return { message: text, artifacts: [] };
+        }
+        return {
+          message: parsed.message || "",
+          artifacts: Array.isArray(parsed.artifacts) ? parsed.artifacts : [],
+        };
+      } catch {
+        // If JSON parsing fails, treat as plain text
+        return { message: text || "Response received but could not parse.", artifacts: [] };
+      }
     } catch (err) {
       lastError = err instanceof Error ? err.message : "Unknown error";
       console.warn(`Gemini attempt ${attempt + 1} error:`, err);
     }
   }
 
-  // All attempts failed — show specific error
+  // All attempts failed
   return {
     message: `⚠️ ${lastError || "AI service temporarily unavailable."}`,
     artifacts: [],

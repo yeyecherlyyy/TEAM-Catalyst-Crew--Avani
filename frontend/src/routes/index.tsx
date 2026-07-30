@@ -216,10 +216,10 @@ function Dashboard() {
 
   // ── Render ─────────────────────────────────────────
   return (
-    <div className="flex min-h-screen w-full gap-4 p-4">
+    <div className="flex h-screen w-full gap-4 overflow-hidden p-4">
       {/* ── Left sidebar (nav) ──────────────────────── */}
       <aside
-        className={`panel flex shrink-0 flex-col p-3 transition-all duration-300 ${
+        className={`panel flex shrink-0 flex-col overflow-hidden p-3 transition-all duration-300 ${
           collapsed ? "w-[68px]" : "w-16 lg:w-60"
         }`}
       >
@@ -340,7 +340,7 @@ function Dashboard() {
       </aside>
 
       {/* ── Left chat pane ──────────────────────────── */}
-      <section className="panel flex w-[380px] shrink-0 flex-col p-4 max-md:hidden">
+      <section className="panel flex w-[380px] shrink-0 flex-col overflow-hidden p-4 max-md:hidden">
         <header className="flex items-center gap-3 border-b border-border pb-3">
           <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
             <Sparkle className="size-4" />
@@ -424,7 +424,7 @@ function Dashboard() {
       </section>
 
       {/* ── Center: Artifacts ONLY ──────────────────── */}
-      <main className="stage flex min-w-0 flex-1 flex-col overflow-y-auto px-6 py-6">
+      <main className="stage flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-6 py-6">
         {allArtifacts.length === 0 ? (
           /* Empty state — subtle, no hero text */
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">

@@ -8,81 +8,100 @@ import {
   BookOpen,
   Users,
   ChevronDown,
-  ChevronUp,
-  Tag,
+  ChevronRight,
+  Copy,
+  Check,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { Artifact, ArtifactSection, ArtifactType } from "../lib/gemini";
 
 // ── Icon + color mapping per artifact type ───────────
 const TYPE_META: Record<
   ArtifactType,
-  { icon: typeof FileCode2; label: string; accent: string }
+  { icon: typeof FileCode2; label: string; gradient: string; border: string }
 > = {
   pitch_deck: {
     icon: Presentation,
     label: "Pitch Deck",
-    accent: "from-violet-500/20 to-purple-500/20 border-violet-500/30",
+    gradient: "linear-gradient(135deg, rgba(139,92,246,0.12), rgba(168,85,247,0.06))",
+    border: "rgba(139,92,246,0.3)",
   },
   tech_spec: {
     icon: FileCode2,
-    label: "Technical Spec",
-    accent: "from-blue-500/20 to-cyan-500/20 border-blue-500/30",
+    label: "Tech Spec",
+    gradient: "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(6,182,212,0.06))",
+    border: "rgba(59,130,246,0.3)",
   },
   architecture: {
     icon: LayoutDashboard,
     label: "Architecture",
-    accent: "from-emerald-500/20 to-teal-500/20 border-emerald-500/30",
+    gradient: "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(20,184,166,0.06))",
+    border: "rgba(16,185,129,0.3)",
   },
   demo_script: {
     icon: Play,
     label: "Demo Script",
-    accent: "from-orange-500/20 to-amber-500/20 border-orange-500/30",
+    gradient: "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(245,158,11,0.06))",
+    border: "rgba(249,115,22,0.3)",
   },
   scorecard: {
     icon: Award,
     label: "Scorecard",
-    accent: "from-yellow-500/20 to-lime-500/20 border-yellow-500/30",
+    gradient: "linear-gradient(135deg, rgba(234,179,8,0.12), rgba(132,204,22,0.06))",
+    border: "rgba(234,179,8,0.3)",
   },
   roadmap: {
     icon: Map,
     label: "Roadmap",
-    accent: "from-pink-500/20 to-rose-500/20 border-pink-500/30",
+    gradient: "linear-gradient(135deg, rgba(236,72,153,0.12), rgba(244,63,94,0.06))",
+    border: "rgba(236,72,153,0.3)",
   },
   solution_brief: {
     icon: BookOpen,
     label: "Solution Brief",
-    accent: "from-indigo-500/20 to-blue-500/20 border-indigo-500/30",
+    gradient: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(59,130,246,0.06))",
+    border: "rgba(99,102,241,0.3)",
   },
   user_stories: {
     icon: Users,
     label: "User Stories",
-    accent: "from-fuchsia-500/20 to-pink-500/20 border-fuchsia-500/30",
+    gradient: "linear-gradient(135deg, rgba(217,70,239,0.12), rgba(236,72,153,0.06))",
+    border: "rgba(217,70,239,0.3)",
   },
 };
 
 // ── Section renderer ─────────────────────────────────
 function SectionBlock({ section }: { section: ArtifactSection }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = useCallback(() => {
+    if (section.code) {
+      navigator.clipboard.writeText(section.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [section.code]);
+
   return (
-    <div className="space-y-2">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="space-y-1.5">
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
         {section.heading}
       </h4>
 
       {section.body && (
-        <p className="text-sm leading-relaxed text-foreground/90">
+        <p className="text-[13px] leading-relaxed text-foreground/85">
           {section.body}
         </p>
       )}
 
       {section.bullets && section.bullets.length > 0 && (
-        <ul className="space-y-1.5 pl-1">
+        <ul className="space-y-1 pl-0.5">
           {section.bullets.map((b, i) => (
             <li
               key={i}
-              className="flex gap-2 text-sm leading-relaxed text-foreground/85"
+              className="flex gap-2 text-[13px] leading-relaxed text-foreground/80"
             >
-              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary/60" />
+              <span className="mt-2 size-1 shrink-0 rounded-full bg-primary/50" />
               {b}
             </li>
           ))}
@@ -90,109 +109,104 @@ function SectionBlock({ section }: { section: ArtifactSection }) {
       )}
 
       {section.code && (
-        <pre className="overflow-x-auto rounded-xl border border-border bg-surface-2 p-3 text-xs leading-relaxed">
-          <code>{section.code}</code>
-        </pre>
+        <div className="group relative">
+          <button
+            onClick={copyCode}
+            className="absolute right-2 top-2 rounded-md bg-surface/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label="Copy code"
+          >
+            {copied ? (
+              <Check className="size-3 text-emerald-500" />
+            ) : (
+              <Copy className="size-3 text-muted-foreground" />
+            )}
+          </button>
+          <pre className="overflow-x-auto rounded-lg border border-border/50 bg-surface-2/50 p-3 text-[11px] leading-relaxed">
+            <code>{section.code}</code>
+          </pre>
+        </div>
       )}
-    </div>
-  );
-}
-
-// ── Confidence bar ───────────────────────────────────
-function ConfidenceBar({ value }: { value: number }) {
-  const color =
-    value >= 80
-      ? "bg-emerald-500"
-      : value >= 60
-        ? "bg-yellow-500"
-        : "bg-orange-500";
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-surface-2">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${color}`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-      <span className="text-[10px] font-medium text-muted-foreground">
-        {value}%
-      </span>
     </div>
   );
 }
 
 // ── Main artifact card ───────────────────────────────
 export function ArtifactCard({ artifact }: { artifact: Artifact }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const meta = TYPE_META[artifact.type] ?? TYPE_META.tech_spec;
   const Icon = meta.icon;
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border bg-gradient-to-br ${meta.accent} backdrop-blur-sm transition-all duration-300 hover:shadow-lg`}
+      className="overflow-hidden rounded-xl transition-all duration-200 hover:shadow-md"
+      style={{
+        background: meta.gradient,
+        border: `1px solid ${meta.border}`,
+      }}
     >
-      {/* Header */}
+      {/* Header — always visible */}
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-start gap-3 p-4 text-left"
+        className="flex w-full items-start gap-3 px-4 py-3 text-left"
       >
-        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface/80 backdrop-blur-sm">
-          <Icon className="size-5 text-foreground" />
+        <div
+          className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg"
+          style={{ backgroundColor: `color-mix(in srgb, ${meta.border} 30%, transparent)` }}
+        >
+          <Icon className="size-4 text-foreground/80" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-surface/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <span className="rounded-md bg-surface/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
               {meta.label}
             </span>
             {artifact.confidence != null && (
-              <span className="text-[10px] text-muted-foreground">
-                {artifact.confidence}% match
+              <span className="text-[9px] font-medium text-muted-foreground/70">
+                {artifact.confidence}%
               </span>
             )}
           </div>
-          <h3 className="mt-1 text-sm font-semibold leading-tight text-foreground">
+          <h3 className="mt-1 text-[13px] font-semibold leading-tight text-foreground">
             {artifact.title}
           </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-            {artifact.summary}
-          </p>
+          {!expanded && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground/80 line-clamp-1">
+              {artifact.summary}
+            </p>
+          )}
         </div>
 
-        <div className="shrink-0 pt-1 text-muted-foreground">
+        <div className="shrink-0 pt-1 text-muted-foreground/60">
           {expanded ? (
-            <ChevronUp className="size-4" />
+            <ChevronDown className="size-3.5" />
           ) : (
-            <ChevronDown className="size-4" />
+            <ChevronRight className="size-3.5" />
           )}
         </div>
       </button>
 
-      {/* Content */}
+      {/* Expandable content */}
       {expanded && (
-        <div className="space-y-4 border-t border-border/50 px-4 pb-4 pt-3">
+        <div className="space-y-3 border-t border-border/30 px-4 pb-4 pt-3">
+          <p className="text-[12px] italic text-muted-foreground/70">
+            {artifact.summary}
+          </p>
+
           {artifact.sections.map((section, i) => (
             <SectionBlock key={i} section={section} />
           ))}
 
           {artifact.tags && artifact.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-2">
+            <div className="flex flex-wrap gap-1 pt-1">
               {artifact.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 rounded-full bg-surface/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+                  className="rounded-full bg-surface/40 px-2 py-0.5 text-[9px] font-medium text-muted-foreground/80"
                 >
-                  <Tag className="size-2.5" />
                   {tag}
                 </span>
               ))}
-            </div>
-          )}
-
-          {artifact.confidence != null && (
-            <div className="pt-1">
-              <ConfidenceBar value={artifact.confidence} />
             </div>
           )}
         </div>
@@ -201,14 +215,12 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
   );
 }
 
-// ── Artifact grid (renders multiple artifacts) ───────
+// ── Artifact grid ────────────────────────────────────
 export function ArtifactGrid({ artifacts }: { artifacts: Artifact[] }) {
-  if (artifacts.length === 0) {
-    return null;
-  }
+  if (artifacts.length === 0) return null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
       {artifacts.map((artifact, i) => (
         <ArtifactCard key={`${artifact.type}-${i}`} artifact={artifact} />
       ))}
