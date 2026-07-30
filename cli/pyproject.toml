@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ghost_pm"]
+
+[project]
+name = "ghostpm"
+version = "2.0.0"
+description = "AI-powered CLI project manager for hackathon teams — interactive terminal, real-time sync, and intelligent advice"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Catalyst Crew" },
+]
+
+dependencies = [
+    # CLI framework
+    "click>=8.1",
+    "rich>=13.0",
+    
+    # AI agent framework
+    "pydantic>=2.0",
+    "pydantic-ai>=0.1",
+    
+    # Google Gemini SDK (for AI advisor)
+    "google-genai>=1.0",
+    
+    # Supabase client
+    "supabase>=2.0",
+    
+    # Git operations
+    "gitpython>=3.1",
+    
+    # Code graph (graphify)
+    "graphifyy>=0.1",
+    
+    # Environment config
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+ghostpm = "ghost_pm.cli:cli"

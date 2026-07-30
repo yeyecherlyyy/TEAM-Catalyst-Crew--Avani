@@ -1,0 +1,180 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-stage: var(--stage);
+
+  --color-neon: var(--neon);
+  --color-neon-foreground: var(--neon-foreground);
+  --color-lime: var(--lime);
+}
+
+:root {
+  --radius: 0.875rem;
+  /* Palette: #ecedea  #d5cec5  #f4eae2  #e2d5cb  #d6bcae */
+  --background: oklch(0.95 0.004 120);
+  --foreground: oklch(0.32 0.018 45);
+  --surface: oklch(0.96 0.011 65);
+  --surface-2: oklch(0.88 0.014 70);
+  --stage: oklch(0.91 0.014 65);
+  --card: oklch(0.96 0.011 65);
+  --card-foreground: oklch(0.32 0.018 45);
+  --popover: oklch(0.96 0.011 65);
+  --popover-foreground: oklch(0.32 0.018 45);
+  --primary: oklch(0.81 0.032 45);
+  --primary-foreground: oklch(0.3 0.018 45);
+  --neon: oklch(0.81 0.032 45);
+  --neon-foreground: oklch(0.3 0.018 45);
+  --lime: oklch(0.86 0.016 70);
+  --secondary: oklch(0.88 0.014 70);
+  --secondary-foreground: oklch(0.32 0.018 45);
+  --muted: oklch(0.91 0.014 65);
+  --muted-foreground: oklch(0.5 0.02 50);
+  --accent: oklch(0.81 0.032 45);
+  --accent-foreground: oklch(0.3 0.018 45);
+  --destructive: oklch(0.58 0.15 25);
+  --destructive-foreground: oklch(0.97 0.006 70);
+  --border: oklch(0.32 0.018 45 / 14%);
+  --input: oklch(0.32 0.018 45 / 18%);
+  --ring: oklch(0.81 0.032 45);
+
+  --gradient-hero: linear-gradient(
+    135deg,
+    oklch(0.42 0.022 45) 0%,
+    oklch(0.62 0.045 40) 55%,
+    oklch(0.78 0.04 45) 100%
+  );
+  --gradient-stage: radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(in oklab, var(--neon) 40%, transparent),
+      transparent 65%
+    ),
+    linear-gradient(180deg, oklch(0.97 0.009 65) 0%, oklch(0.9 0.016 65) 100%);
+  --gradient-glow: radial-gradient(
+    600px circle at 50% 0%,
+    color-mix(in oklab, var(--neon) 30%, transparent),
+    transparent 70%
+  );
+
+  --shadow-neon: 0 0 0 1px color-mix(in oklab, var(--foreground) 12%, transparent),
+    0 18px 50px -22px color-mix(in oklab, var(--foreground) 40%, transparent);
+  --shadow-panel: 0 24px 60px -34px oklch(0.32 0.018 45 / 45%);
+}
+
+.dark {
+  /* Warm dark: espresso/cocoa base with the light palette tones as text + accents */
+  --background: oklch(0.19 0.012 50);
+  --foreground: oklch(0.94 0.008 80);
+  --surface: oklch(0.23 0.014 50);
+  --surface-2: oklch(0.28 0.017 50);
+  --stage: oklch(0.25 0.016 50);
+  --card: oklch(0.23 0.014 50);
+  --card-foreground: oklch(0.94 0.008 80);
+  --popover: oklch(0.23 0.014 50);
+  --popover-foreground: oklch(0.94 0.008 80);
+  --primary: oklch(0.82 0.035 45);
+  --primary-foreground: oklch(0.21 0.014 50);
+  --neon: oklch(0.82 0.035 45);
+  --neon-foreground: oklch(0.21 0.014 50);
+  --lime: oklch(0.88 0.018 70);
+  --secondary: oklch(0.28 0.017 50);
+  --secondary-foreground: oklch(0.94 0.008 80);
+  --muted: oklch(0.27 0.016 50);
+  --muted-foreground: oklch(0.76 0.018 70);
+  --accent: oklch(0.82 0.035 45);
+  --accent-foreground: oklch(0.21 0.014 50);
+  --destructive: oklch(0.6 0.15 25);
+  --destructive-foreground: oklch(0.96 0.008 80);
+  --border: oklch(0.94 0.008 80 / 13%);
+  --input: oklch(0.94 0.008 80 / 16%);
+  --ring: oklch(0.82 0.035 45);
+
+  --gradient-hero: linear-gradient(
+    135deg,
+    oklch(0.96 0.008 110) 0%,
+    oklch(0.88 0.02 70) 55%,
+    oklch(0.8 0.04 40) 100%
+  );
+  --gradient-stage: radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(in oklab, var(--neon) 14%, transparent),
+      transparent 65%
+    ),
+    linear-gradient(180deg, oklch(0.26 0.016 50) 0%, oklch(0.21 0.013 50) 100%);
+  --gradient-glow: radial-gradient(
+    600px circle at 50% 0%,
+    color-mix(in oklab, var(--neon) 12%, transparent),
+    transparent 70%
+  );
+
+  --shadow-neon: 0 0 0 1px color-mix(in oklab, var(--neon) 30%, transparent),
+    0 18px 50px -20px color-mix(in oklab, var(--neon) 45%, transparent);
+  --shadow-panel: 0 24px 60px -30px oklch(0 0 0 / 75%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    background-image: var(--gradient-glow);
+    background-repeat: no-repeat;
+  }
+}
+
+@utility text-gradient-hero {
+  background-image: var(--gradient-hero);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility stage {
+  background-image: var(--gradient-stage);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3xl);
+}
+
+@utility panel {
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-panel);
+}
+
+@utility glow-ring {
+  box-shadow: var(--shadow-neon);
+}
