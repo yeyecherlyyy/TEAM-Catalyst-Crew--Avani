@@ -140,7 +140,7 @@ export const ArtifactEnvelopeItemSchema = z.object({
   ]),
   title: z.string(),
   version: z.number().int().positive(),
-  content: z.record(z.unknown()),
+  content: z.record(z.string(), z.unknown()),
 });
 
 export const ResponseEnvelopeSchema = z.object({

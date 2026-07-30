@@ -2,7 +2,7 @@
 // GHOST PM — System Prompts (Section 17)
 // ============================================================
 
-import type { Team } from '@/lib/types';
+import type { Team, WeightProfile } from '@/lib/types';
 
 const ENVELOPE_INSTRUCTION = `
 You must respond with ONLY a single JSON object matching this envelope:
@@ -32,7 +32,7 @@ Team Context:
 `;
 }
 
-export function getProblemAdvisorPrompt(team: Team, weights: Record<string, number>): string {
+export function getProblemAdvisorPrompt(team: Team, weights: WeightProfile): string {
   return `You are Ghost PM's Problem Statement Advisor — a brutally honest scoring engine for hackathon problem statements.
 
 ${formatTeamContext(team)}

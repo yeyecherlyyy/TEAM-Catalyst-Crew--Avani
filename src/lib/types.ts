@@ -260,6 +260,16 @@ export interface Resource {
   created_at: string;
 }
 
+export interface SharedResource {
+  id: string;
+  team_id: string;
+  name: string;
+  url: string;
+  description: string | null;
+  added_by: string | null;
+  created_at: string;
+}
+
 export interface Artifact {
   id: string;
   team_id: string;

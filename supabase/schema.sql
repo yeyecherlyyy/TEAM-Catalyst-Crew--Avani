@@ -448,6 +448,25 @@ INSERT INTO resources (name, url, description, category, tags, is_global) VALUES
   ('Postman', 'https://postman.com', 'API testing and documentation', 'Development', ARRAY['api', 'testing', 'docs'], TRUE);
 
 -- ============================================================
+-- SHARED RESOURCES
+-- ============================================================
+CREATE TABLE shared_resources (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  added_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE shared_resources ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Team members can manage shared resources"
+  ON shared_resources FOR ALL USING (
+    team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
+  );
+
+-- ============================================================
 -- Enable Realtime for collaborative features
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE brainstorm_messages;
@@ -455,3 +474,5 @@ ALTER PUBLICATION supabase_realtime ADD TABLE shared_documents;
 ALTER PUBLICATION supabase_realtime ADD TABLE nudges;
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_members;
+ALTER PUBLICATION supabase_realtime ADD TABLE shared_resources;
+
