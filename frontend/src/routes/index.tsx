@@ -301,8 +301,8 @@ function Dashboard() {
           onClick={() => setCollapsed((c) => !c)}
           className="mb-4 flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-surface-2"
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkle className="size-4" />
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-black text-primary-foreground">
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg object-contain" />
           </span>
           {!collapsed && (
             <span className="hidden font-semibold tracking-tight lg:inline">GhostPM</span>

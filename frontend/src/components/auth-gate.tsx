@@ -80,8 +80,8 @@ export function AuthModal({ open, onClose, defaultMode = "login" }: AuthGateProp
 
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
-            <Sparkle className="size-7" />
+          <div className="grid size-14 place-items-center rounded-2xl bg-black text-primary-foreground overflow-hidden">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight">GhostPM</h1>
