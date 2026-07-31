@@ -1,0 +1,7 @@
+{
+  "name": "catalyst-crew-vercel-deploy",
+  "private": true,
+  "scripts": {
+    "build": "cd frontend && bun install && bun run build"
+  }
+}
