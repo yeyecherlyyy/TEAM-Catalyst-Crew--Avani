@@ -427,8 +427,8 @@ function Dashboard() {
       {/* ── Chat pane ────────────────────────────────── */}
       <section className="panel flex w-[380px] shrink-0 flex-col overflow-hidden p-4 max-md:hidden">
         <header className="flex items-center gap-3 border-b border-border pb-3">
-          <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
-            <Sparkle className="size-4" />
+          <span className="grid size-9 place-items-center rounded-xl bg-black text-primary-foreground">
+            <img src="/logo.png" alt="Logo" className="w-5 h-5 rounded-md object-contain" />
           </span>
           <div>
             <p className="text-sm font-semibold">GhostPM Chat</p>
