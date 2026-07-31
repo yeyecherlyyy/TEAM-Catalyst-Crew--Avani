@@ -129,9 +129,8 @@ export async function judgePitch(ideaText: string): Promise<JudgeResult> {
             contents,
             generationConfig: {
               responseMimeType: "application/json",
-              temperature: 0.4,
-              maxOutputTokens: 4096,
-              thinkingConfig: { thinkingBudget: 0 },
+              temperature: 0.2,
+              maxOutputTokens: 2048,
             },
           }),
         }
@@ -150,8 +149,20 @@ export async function judgePitch(ideaText: string): Promise<JudgeResult> {
       const data = await res.json();
       const parts = data?.candidates?.[0]?.content?.parts ?? [];
       const textPart = parts.find((p: Record<string, unknown>) => typeof p.text === "string");
-      const text = textPart?.text ?? "";
-      return JSON.parse(text) as JudgeResult;
+      let text = textPart?.text ?? "";
+      
+      try {
+        let cleanText = text.trim();
+        const firstBrace = cleanText.indexOf("{");
+        const lastBrace = cleanText.lastIndexOf("}");
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+          cleanText = cleanText.slice(firstBrace, lastBrace + 1);
+        }
+        return JSON.parse(cleanText) as JudgeResult;
+      } catch (e) {
+        return JSON.parse(text) as JudgeResult;
+      }
     } catch (err) {
       lastError = err instanceof Error ? err.message : "Unknown error";
     }

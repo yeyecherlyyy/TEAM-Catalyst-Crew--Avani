@@ -158,7 +158,6 @@ export async function callGemini(
               responseMimeType: "application/json",
               temperature: 0.6,
               maxOutputTokens: 4096,
-              thinkingConfig: { thinkingBudget: 0 },
             },
           }),
         }
@@ -199,9 +198,11 @@ export async function callGemini(
       // Parse JSON response
       try {
         let cleanText = text.trim();
-        const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        if (match) {
-          cleanText = match[1].trim();
+        const firstBrace = cleanText.indexOf("{");
+        const lastBrace = cleanText.lastIndexOf("}");
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+          cleanText = cleanText.slice(firstBrace, lastBrace + 1);
         }
         
         const parsed: GeminiResponse = JSON.parse(cleanText);
