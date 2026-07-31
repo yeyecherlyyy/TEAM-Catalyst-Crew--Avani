@@ -7,38 +7,57 @@ packages = ["ghost_pm"]
 
 [project]
 name = "ghostpm"
-version = "2.0.0"
+version = "2.0.1"
 description = "AI-powered CLI project manager for hackathon teams — interactive terminal, real-time sync, and intelligent advice"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
-    { name = "Catalyst Crew" },
+    { name = "Catalyst Crew", email = "catalyst.crew.hackathon@gmail.com" },
+]
+keywords = [
+    "hackathon", "project-manager", "cli", "ai", "team",
+    "collaboration", "code-graph", "real-time", "supabase",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Utilities",
 ]
 
 dependencies = [
     # CLI framework
     "click>=8.1",
     "rich>=13.0",
-    
-    # AI agent framework
+
+    # Data models
     "pydantic>=2.0",
-    "pydantic-ai>=0.1",
-    
+
     # Google Gemini SDK (for AI advisor)
     "google-genai>=1.0",
-    
+
     # Supabase client
     "supabase>=2.0",
-    
+
     # Git operations
     "gitpython>=3.1",
-    
+
     # Code graph (graphify)
     "graphifyy>=0.1",
-    
+
     # Environment config
     "python-dotenv>=1.0",
+
+    # Beautiful Interactive TUI
+    "questionary>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -46,6 +65,15 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
 ]
+ai = [
+    "pydantic-ai>=0.1",
+]
+
+[project.urls]
+Homepage = "https://ghost-pm.vercel.app"
+Repository = "https://github.com/yeyecherlyyy/TEAM-Catalyst-Crew--Avani"
+Documentation = "https://ghost-pm.vercel.app/docs"
+"Bug Tracker" = "https://github.com/yeyecherlyyy/TEAM-Catalyst-Crew--Avani/issues"
 
 [project.scripts]
 ghostpm = "ghost_pm.cli:cli"

@@ -44,6 +44,8 @@ class GhostSyncClient:
                         self.config.access_token,
                         self.config.refresh_token,
                     )
+                    # Force postgrest to use the token for table & rpc queries
+                    self._client.postgrest.auth(self.config.access_token)
                 except Exception:
                     pass  # Continue without auth — RLS may block some ops
 
@@ -56,10 +58,18 @@ class GhostSyncClient:
     def get_team_by_code(self, team_code: str) -> dict | None:
         """Fetch team data by team_code (the human-readable join code)."""
         try:
+            # First use the RPC to securely join the team and bypass RLS to get the team ID
+            rpc_res = self.client.rpc("join_team_by_code", {"p_team_code": team_code}).execute()
+            team_id = rpc_res.data
+
+            if not team_id:
+                return None
+
+            # Now we are a member, so RLS allows us to fetch the full team data
             result = (
                 self.client.table("teams")
                 .select("*")
-                .eq("team_code", team_code)
+                .eq("id", team_id)
                 .single()
                 .execute()
             )
@@ -211,15 +221,20 @@ class GhostSyncClient:
     # ──────────────────────────────────────────────────────
 
     def get_or_create_chat_session(self, team_id: str) -> str | None:
-        """Get or create the CLI chat session for a team."""
+        """Get or create the shared chat session for a team.
+
+        Uses __web_chat__ anchor — same as the frontend — so messages
+        are visible in both the CLI terminal and the web dashboard.
+        """
         try:
-            # Look for existing CLI chat session
+            # Look for existing shared chat session
             result = (
                 self.client.table("brainstorm_sessions")
                 .select("id")
                 .eq("team_id", team_id)
-                .eq("anchor_text", "__cli_chat__")
+                .eq("anchor_text", "__web_chat__")
                 .eq("is_active", True)
+                .order("created_at", desc=True)
                 .limit(1)
                 .execute()
             )
@@ -231,7 +246,7 @@ class GhostSyncClient:
                 self.client.table("brainstorm_sessions")
                 .insert({
                     "team_id": team_id,
-                    "anchor_text": "__cli_chat__",
+                    "anchor_text": "__web_chat__",
                     "is_active": True,
                 })
                 .execute()

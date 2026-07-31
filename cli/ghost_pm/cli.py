@@ -22,6 +22,7 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.rule import Rule
 
 from ghost_pm.config import GhostConfig, GHOST_UI_URL
 from ghost_pm.state import (
@@ -34,16 +35,82 @@ from ghost_pm.state import (
 
 console = Console()
 
+# ── Premium Unicode chars ─────────────────────────────
+BAR_FULL = "█"
+BAR_LOW = "░"
+DOT_ON = "●"
+DOT_OFF = "○"
+ARROW = "›"
+CHECK = "✓"
+CROSS = "✗"
+SPARK = "*"
+WARN = "!"
+FIRE = "[HOT]"
+CLOCK = "[TIME]"
+ROCKET = ">>"
+BRAIN = "[AI]"
+
+# ── Premium ASCII art logo ────────────────────────────
+GHOST_LOGO = """[bold cyan]
+   ██████╗ ██╗  ██╗ ██████╗ ███████╗████████╗   ██████╗ ███╗   ███╗
+  ██╔════╝ ██║  ██║██╔═══██╗██╔════╝╚══██╔══╝   ██╔══██╗████╗ ████║
+  ██║  ███╗███████║██║   ██║███████╗   ██║█████╗ ██████╔╝██╔████╔██║
+  ██║   ██║██╔══██║██║   ██║╚════██║   ██║╚════╝ ██╔═══╝ ██║╚██╔╝██║
+  ╚██████╔╝██║  ██║╚██████╔╝███████║   ██║       ██║     ██║ ╚═╝ ██║
+   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝       ╚═╝     ╚═╝     ╚═╝[/bold cyan]"""
+
+# ── Compact ASCII banner (for quick commands) ────────
+BANNER_SMALL = """[bold cyan]
+  ╔══════════════════════════════════════╗
+  ║  Ghost-PM  ·  Headless CLI Manager  ║
+  ╚══════════════════════════════════════╝[/bold cyan]"""
+
+
+def _progress_bar(percent: float, width: int = 20) -> str:
+    """Premium Unicode progress bar."""
+    filled = int(percent / 100 * width)
+    empty = width - filled
+    if percent >= 80:
+        color = "green"
+    elif percent >= 40:
+        color = "yellow"
+    else:
+        color = "red"
+    bar = f"[{color}]{BAR_FULL * filled}[/{color}][dim]{BAR_LOW * empty}[/dim]"
+    return f"{bar} [bold]{percent:.0f}%[/bold]"
+
+
+def _time_display(hours: float) -> str:
+    """Premium time remaining display."""
+    if hours < 1:
+        mins = int(hours * 60)
+        return f"[bold red]{FIRE} {mins}m remaining[/bold red]"
+    elif hours < 3:
+        return f"[bold red]{CLOCK} {hours:.1f}h remaining[/bold red]"
+    elif hours < 8:
+        return f"[yellow]{CLOCK} {hours:.1f}h remaining[/yellow]"
+    else:
+        return f"[green]{CLOCK} {hours:.1f}h remaining[/green]"
+
 
 @click.group()
-@click.version_option(version="2.0.0", prog_name="ghostpm")
+@click.version_option(version="2.0.1", prog_name="ghostpm")
 def cli() -> None:
-    """Ghost-PM — Headless CLI Project Manager for Hackathons.
+    """Ghost-PM — AI-Powered CLI Project Manager for Hackathons.
 
+    \b
     Get started:
       1. Visit the web dashboard to create a team
       2. Run: ghostpm join <team_code>
       3. You're in! Use /help for commands.
+
+    \b
+    Commands:
+      ghostpm login     — Authenticate with email/password
+      ghostpm signup    — Create a new account
+      ghostpm join CODE — Join a team & enter interactive mode
+      ghostpm status    — Quick project status check
+      ghostpm watch     — Live auto-refreshing dashboard
     """
     pass
 
@@ -62,7 +129,6 @@ def login(email: str | None) -> None:
     from ghost_pm.auth import login_with_email, ensure_authenticated
 
     if email:
-        # Direct email login
         import getpass
         password = getpass.getpass("Password: ")
         from supabase import create_client
@@ -76,11 +142,11 @@ def login(email: str | None) -> None:
                 meta = result.user.user_metadata or {}
                 config.member_name = meta.get("full_name", email.split("@")[0])
                 config.save_ghost_config()
-                console.print(f"[green]Logged in as {config.member_name}[/green]")
+                console.print(f"  [green]{CHECK}[/green] Logged in as [bold]{config.member_name}[/bold]")
             else:
-                console.print("[red]Login failed.[/red]")
+                console.print(f"  [red]{CROSS}[/red] Login failed.")
         except Exception as e:
-            console.print(f"[red]Login error: {e}[/red]")
+            console.print(f"  [red]{CROSS}[/red] Login error: {e}")
     else:
         ensure_authenticated(config)
 
@@ -89,7 +155,6 @@ def login(email: str | None) -> None:
 def signup() -> None:
     """Create a new Ghost-PM account."""
     config = GhostConfig.load()
-
     from ghost_pm.auth import signup_with_email
     signup_with_email(config)
 
@@ -109,71 +174,146 @@ def join(team_code: str, name: str | None) -> None:
     """
     config = GhostConfig.load()
 
+    # ── Premium welcome ──
+    console.print(GHOST_LOGO)
+    console.print()
+    console.print(
+        f"  [dim]v2.0.1[/dim]  {ARROW}  "
+        f"[bold]AI-Powered CLI Project Manager for Hackathons[/bold]"
+    )
+    console.print(Rule(style="cyan"))
+
     # ── Step 1: Authenticate ──
     from ghost_pm.auth import ensure_authenticated
 
     if not config.has_auth:
         console.print()
         console.print(Panel(
-            "[bold]Welcome to Ghost-PM[/bold]\n\n"
-            "You need an account to join a team.\n"
-            f"Sign up at [cyan]{config.ui_url}[/cyan] or create one here.",
-            expand=False,
+            f"  {ROCKET} [bold]Welcome to Ghost-PM![/bold]\n\n"
+            f"  You need an account to join a team.\n"
+            f"  Sign up at [cyan]{config.ui_url}[/cyan] or create one below.",
+            expand=False, border_style="cyan", padding=(1, 2),
         ))
         config = ensure_authenticated(config)
         if not config:
-            console.print("[red]Authentication required to join a team.[/red]")
+            console.print(f"  [red]{CROSS}[/red] Authentication required to join a team.")
             return
+    else:
+        console.print(
+            f"  [green]{CHECK}[/green] Authenticated as [bold]{config.member_name}[/bold]"
+        )
 
-    # Override name if provided
     if name:
         config.member_name = name
 
+    console.print()
+
     # ── Step 2: Resolve team_code → team ──
-    console.print(f"[dim]Connecting to team {team_code}...[/dim]")
+    import time as _time
+
+    steps = [
+        (f"{SPARK} Connecting to team [bold]{team_code}[/bold]...", 0.3),
+        (f"{SPARK} Resolving team via secure RPC...", 0.2),
+    ]
+    for msg, delay in steps:
+        console.print(f"  [dim]{msg}[/dim]")
+        _time.sleep(delay)
 
     from ghost_pm.sync.client import GhostSyncClient
     sync = GhostSyncClient(config)
 
     team = sync.get_team_by_code(team_code.upper().strip())
     if not team:
-        console.print(f"[red]Team '{team_code}' not found.[/red]")
-        console.print(f"[dim]Create a team at {config.ui_url}/dashboard[/dim]")
+        console.print()
+        console.print(Panel(
+            f"  [red]{CROSS} Team '[bold]{team_code}[/bold]' not found.[/red]\n\n"
+            f"  Make sure you have the correct code from the web dashboard.\n"
+            f"  Create a new team at: [cyan]{config.ui_url}[/cyan]",
+            expand=False, border_style="red", title="[red]Team Not Found[/red]",
+            padding=(1, 2),
+        ))
         return
 
     team_id = team["id"]
     config.team_id = team_id
     config.team_code = team.get("team_code", team_code)
+    console.print(
+        f"  [green]{CHECK}[/green] Found team: "
+        f"[bold]{team.get('name', team_code)}[/bold] "
+        f"[dim]({config.team_code})[/dim]"
+    )
 
     # ── Step 3: Register as member ──
+    console.print(f"  [dim]{SPARK} Registering as team member...[/dim]")
+    _time.sleep(0.2)
     member = sync.join_team(team_id, config.user_id, config.member_name)
     if member:
-        console.print(f"[green]Joined team: {team.get('name', team_code)}[/green]")
+        console.print(
+            f"  [green]{CHECK}[/green] Registered as [bold]{config.member_name}[/bold]"
+        )
     else:
-        console.print("[yellow]Could not register. Continuing in offline mode.[/yellow]")
+        console.print(f"  [yellow]{WARN}[/yellow] Could not register. Continuing in offline mode.")
 
     # ── Step 4: Setup local project ──
+    console.print(f"  [dim]{SPARK} Setting up local project...[/dim]")
+    _time.sleep(0.2)
     config.ghost_dir.mkdir(parents=True, exist_ok=True)
     config.save_ghost_config()
+    console.print(f"  [green]{CHECK}[/green] Config saved to [dim].ghost/config.json[/dim]")
 
-    # Initialize git if needed
     _ensure_git_repo()
     _ensure_gitignore()
 
     # ── Step 5: Build initial state ──
+    console.print(f"  [dim]{SPARK} Building project state...[/dim]")
+    _time.sleep(0.2)
     state = _build_initial_state(config, team, sync)
     state.save(config.state_path)
+    console.print(f"  [green]{CHECK}[/green] Project state initialized")
 
     # Run initial graph analysis
+    console.print(f"  [dim]{SPARK} Analyzing codebase with graphify...[/dim]")
     _run_initial_graph(config, state, sync, team_id, config.member_name)
 
     # Install git hooks
     _install_hooks_if_git()
 
     # ── Step 6: Start daemon ──
+    console.print(f"  [dim]{SPARK} Starting background daemon...[/dim]")
+    _time.sleep(0.2)
     _start_daemon_background(config)
 
-    # ── Step 7: Enter REPL ──
+    # ── Step 7: Summary panel ──
+    state.update_hours_remaining()
+    state.compute_overall_progress()
+    hours = state.hours_remaining
+    team_count = len([m for m in state.team if m.is_online])
+    progress = state.overall_progress_percent
+
+    console.print()
+    console.print(Rule(characters="─", style="cyan"))
+    console.print()
+
+    info_lines = [
+        f"  [bold]Project[/bold]    {team.get('name', config.team_code)}",
+        f"  [bold]Team Code[/bold]  [cyan]{config.team_code}[/cyan]",
+        f"  [bold]You[/bold]        {config.member_name}",
+        f"  [bold]Online[/bold]     [green]{team_count}[/green] member{'s' if team_count != 1 else ''}",
+        f"  [bold]Time[/bold]       {_time_display(hours)}",
+        f"  [bold]Progress[/bold]   {_progress_bar(progress, 20)}",
+    ]
+
+    console.print(Panel(
+        "\n".join(info_lines),
+        border_style="cyan",
+        title="[bold cyan]🚀 Ready to Build[/bold cyan]",
+        subtitle="[dim]Type [bold]/help[/bold] for commands  ·  [bold]@ai[/bold] to chat with AI[/dim]",
+        expand=False,
+        padding=(1, 2),
+    ))
+    console.print()
+
+    # ── Step 8: Enter REPL ──
     from ghost_pm.repl import GhostREPL
     repl = GhostREPL(config)
     repl.start()
@@ -190,82 +330,75 @@ def status() -> None:
     config = GhostConfig.load()
 
     if not config.state_path.exists():
-        console.print("[yellow]Not connected to a team yet.[/yellow]")
+        console.print(f"  [yellow]{WARN}[/yellow] Not connected to a team yet.")
         console.print(f"  Join one:  [bold]ghostpm join <team_code>[/bold]")
         console.print(f"  Create at: [bold]{config.ui_url}[/bold]")
         return
 
     state = ProjectState.load(config.state_path)
     state.update_hours_remaining()
+    state.compute_overall_progress()
+
+    hours = state.hours_remaining
+    progress = state.overall_progress_percent
 
     # Header
-    hours = state.hours_remaining
-    time_color = "red" if hours < 2 else "yellow" if hours < 6 else "green"
+    console.print()
     console.print(Panel(
-        f"[bold]{state.project_name or 'Ghost-PM'}[/bold]  |  "
-        f"Team: [cyan]{config.team_code}[/cyan]  |  "
-        f"[{time_color}]{hours:.1f}h remaining[/{time_color}]",
-        expand=False,
+        f"[bold]{state.project_name or 'Ghost-PM'}[/bold]\n"
+        f"  Team: [cyan]{config.team_code}[/cyan]  {ARROW}  "
+        f"{_time_display(hours)}\n"
+        f"  Progress: {_progress_bar(progress, 25)}",
+        expand=False, border_style="cyan",
     ))
 
     # Milestones
     if state.milestones:
-        ms_table = Table(title="Milestones", show_lines=True)
-        ms_table.add_column("", width=3)
-        ms_table.add_column("Milestone", style="bold")
-        ms_table.add_column("Status")
-        ms_table.add_column("Progress")
-        ms_table.add_column("Commits", justify="right")
+        table = Table(show_header=True, header_style="bold", border_style="dim", show_lines=False)
+        table.add_column("", width=2)
+        table.add_column("Milestone", style="bold")
+        table.add_column("Status")
+        table.add_column("Progress")
+        table.add_column("Commits", justify="right")
 
         for ms in state.milestones:
-            icon = ">" if ms.status == "completed" else "~" if ms.status == "active" else " "
-            style = "green" if ms.status == "completed" else "cyan" if ms.status == "active" else "dim"
-            bar = _make_progress_bar(ms.progress_percent)
-            ms_table.add_row(icon, ms.name, f"[{style}]{ms.status}[/{style}]", bar, str(ms.commit_count))
-        console.print(ms_table)
+            if ms.status == "completed":
+                icon, style = f"[green]{CHECK}[/green]", "green"
+            elif ms.status == "active":
+                icon, style = f"[cyan]{ARROW}[/cyan]", "cyan"
+            else:
+                icon, style = f"[dim]{DOT_OFF}[/dim]", "dim"
+            table.add_row(icon, ms.name, f"[{style}]{ms.status}[/{style}]", _progress_bar(ms.progress_percent, 12), str(ms.commit_count))
+        console.print(table)
 
     # Code graph
     graph = state.code_graph
     if graph.total_nodes > 0:
-        console.print()
-        graph_table = Table(title="Code Graph", show_lines=True)
-        graph_table.add_column("Metric", style="bold")
-        graph_table.add_column("Value", justify="right")
-        graph_table.add_row("Nodes", str(graph.total_nodes))
-        graph_table.add_row("Edges", str(graph.total_edges))
-        graph_table.add_row("Functions", str(graph.total_functions))
-        graph_table.add_row("Files", str(graph.total_files))
+        console.print(
+            f"\n  [bold]Code Graph[/bold]  {ARROW}  "
+            f"{graph.total_nodes} nodes, {graph.total_edges} edges, "
+            f"{graph.total_functions} functions, {graph.total_files} files"
+        )
         if graph.god_nodes:
-            graph_table.add_row("God Nodes", str(len(graph.god_nodes)))
-        for sn, cnt in graph.function_statuses.items():
-            if cnt > 0:
-                graph_table.add_row(f"  {sn}", str(cnt))
-        console.print(graph_table)
+            names = ", ".join(f"[yellow]{gn.name}[/yellow]" for gn in graph.god_nodes[:3])
+            console.print(f"  [yellow]{WARN} God Nodes:[/yellow] {names}")
 
     # Team
     if state.team:
-        console.print()
-        team_table = Table(title="Team", show_lines=True)
-        team_table.add_column("Member", style="bold")
-        team_table.add_column("Status")
-        team_table.add_column("Working On")
-        team_table.add_column("Commits", justify="right")
-
+        console.print(f"\n  [bold]Team[/bold]")
         for m in state.team:
-            online = "online" if m.is_online else "offline"
-            team_table.add_row(m.member_name, online, m.current_file or "--", str(m.total_commits))
-        console.print(team_table)
+            dot = f"[green]{DOT_ON}[/green]" if m.is_online else f"[red]{DOT_OFF}[/red]"
+            file_info = m.current_file if m.current_file else "[dim]idle[/dim]"
+            console.print(f"   {dot} [bold]{m.member_name}[/bold]  {ARROW}  {file_info}")
 
     # Footer
     console.print()
-    state.compute_overall_progress()
     console.print(
-        f"  Commits: [bold]{state.total_commits}[/bold]  |  "
-        f"Progress: [bold]{state.overall_progress_percent:.0f}%[/bold]  |  "
-        f"v{state.state_version}"
+        f"  Commits: [bold]{state.total_commits}[/bold]  {ARROW}  "
+        f"v{state.state_version}  {ARROW}  "
+        f"[dim]ghostpm join {config.team_code} for interactive mode[/dim]"
     )
     console.print()
-    console.print("[dim]For interactive mode: ghostpm join <team_code>[/dim]")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -280,7 +413,7 @@ def watch(interval: int) -> None:
     config = GhostConfig.load()
 
     if not config.state_path.exists():
-        console.print("[yellow]Not connected to a team yet.[/yellow]")
+        console.print(f"  [yellow]{WARN}[/yellow] Not connected to a team yet.")
         return
 
     from rich.live import Live
@@ -291,50 +424,52 @@ def watch(interval: int) -> None:
         state.compute_overall_progress()
 
         hours = state.hours_remaining
-        time_color = "red" if hours < 2 else "yellow" if hours < 6 else "green"
+        progress = state.overall_progress_percent
 
         outer = Table.grid(padding=(1, 0))
         outer.add_row(
-            f"[bold]Ghost-PM[/bold]  |  "
-            f"Team: [cyan]{config.team_code}[/cyan]  |  "
-            f"[{time_color}]{hours:.1f}h[/{time_color}]  |  "
-            f"Progress: [bold]{state.overall_progress_percent:.0f}%[/bold]  |  "
-            f"v{state.state_version}  |  "
+            f"[bold cyan]Ghost-PM[/bold cyan]  {ARROW}  "
+            f"Team: [cyan]{config.team_code}[/cyan]  {ARROW}  "
+            f"{_time_display(hours)}  {ARROW}  "
+            f"{_progress_bar(progress, 15)}  {ARROW}  "
             f"[dim]{datetime.now().strftime('%H:%M:%S')}[/dim]"
         )
 
         # Milestones
         if state.milestones:
-            ms_table = Table(title="Milestones", show_lines=True, expand=True)
-            ms_table.add_column("", width=3)
-            ms_table.add_column("Milestone", style="bold")
+            ms_table = Table(show_header=True, header_style="bold", border_style="dim", expand=True)
+            ms_table.add_column("", width=2)
+            ms_table.add_column("Phase", style="bold")
             ms_table.add_column("Status")
             ms_table.add_column("Progress")
             ms_table.add_column("Commits", justify="right")
 
             for ms in state.milestones:
-                icon = ">" if ms.status == "completed" else "~" if ms.status == "active" else " "
-                style = "green" if ms.status == "completed" else "cyan" if ms.status == "active" else "dim"
-                bar = _make_progress_bar(ms.progress_percent)
-                ms_table.add_row(icon, ms.name, f"[{style}]{ms.status}[/{style}]", bar, str(ms.commit_count))
+                if ms.status == "completed":
+                    icon, style = f"[green]{CHECK}[/green]", "green"
+                elif ms.status == "active":
+                    icon, style = f"[cyan]{ARROW}[/cyan]", "cyan"
+                else:
+                    icon, style = f"[dim]{DOT_OFF}[/dim]", "dim"
+                ms_table.add_row(icon, ms.name, f"[{style}]{ms.status}[/{style}]", _progress_bar(ms.progress_percent, 12), str(ms.commit_count))
             outer.add_row(ms_table)
 
         # Team
         if state.team:
-            team_table = Table(title="Team", show_lines=True, expand=True)
+            team_table = Table(show_header=True, header_style="bold", border_style="dim", expand=True)
+            team_table.add_column("", width=2)
             team_table.add_column("Member", style="bold")
-            team_table.add_column("Status")
             team_table.add_column("Working On")
             team_table.add_column("Idle", justify="right")
             team_table.add_column("Commits", justify="right")
 
             for m in state.team:
-                online = "online" if m.is_online else "offline"
-                idle = f"{m.idle_minutes}m" if m.idle_minutes > 0 else "--"
-                team_table.add_row(m.member_name, online, m.current_file or "--", idle, str(m.total_commits))
+                dot = f"[green]{DOT_ON}[/green]" if m.is_online else f"[red]{DOT_OFF}[/red]"
+                idle_str = f"{m.idle_minutes}m" if m.idle_minutes > 0 else "—"
+                team_table.add_row(dot, m.member_name, m.current_file or "[dim]—[/dim]", idle_str, str(m.total_commits))
             outer.add_row(team_table)
 
-        outer.add_row("[dim]Ctrl+C to stop[/dim]")
+        outer.add_row(f"[dim]Press Ctrl+C to stop  {ARROW}  Refreshing every {interval}s[/dim]")
         return outer
 
     try:
@@ -343,7 +478,7 @@ def watch(interval: int) -> None:
                 time.sleep(interval)
                 live.update(build_display())
     except KeyboardInterrupt:
-        console.print("\n[dim]Watch stopped.[/dim]")
+        console.print(f"\n  [dim]{ARROW} Watch stopped.[/dim]")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -367,7 +502,7 @@ def daemon_start() -> None:
         pid = pid_file.read_text().strip()
         try:
             os.kill(int(pid), 0)
-            console.print(f"[yellow]Daemon already running (PID {pid})[/yellow]")
+            console.print(f"  [yellow]{WARN}[/yellow] Daemon already running (PID {pid})")
             return
         except (ProcessLookupError, ValueError):
             pid_file.unlink(missing_ok=True)
@@ -382,17 +517,17 @@ def daemon_stop() -> None:
     pid_file = config.ghost_dir / "daemon.pid"
 
     if not pid_file.exists():
-        console.print("[dim]No daemon running.[/dim]")
+        console.print("  [dim]No daemon running.[/dim]")
         return
 
     try:
         pid = int(pid_file.read_text().strip())
         os.kill(pid, 15)  # SIGTERM
         pid_file.unlink(missing_ok=True)
-        console.print(f"[green]Daemon stopped (PID {pid})[/green]")
+        console.print(f"  [green]{CHECK}[/green] Daemon stopped (PID {pid})")
     except (ProcessLookupError, ValueError):
         pid_file.unlink(missing_ok=True)
-        console.print("[dim]Daemon was not running.[/dim]")
+        console.print("  [dim]Daemon was not running.[/dim]")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -403,9 +538,9 @@ def daemon_stop() -> None:
 def _ensure_git_repo() -> None:
     """Initialize a git repo if one doesn't exist."""
     if not (Path.cwd() / ".git").is_dir():
-        console.print("[dim]Initializing git repository...[/dim]")
+        console.print(f"  [dim]{SPARK} Initializing git repository...[/dim]")
         subprocess.run(["git", "init"], capture_output=True, cwd=str(Path.cwd()))
-        console.print("[green]Git repository initialized[/green]")
+        console.print(f"  [green]{CHECK}[/green] Git repository initialized")
 
 
 def _ensure_gitignore() -> None:
@@ -437,24 +572,23 @@ def _run_initial_graph(config, state, sync, team_id, member_name):
         state.code_graph = summary
         state.files = parser.build_file_records()
 
-        # Push to cloud
         sync.push_graph_snapshot(team_id, member_name, summary)
         console.print(
-            f"[green]Code graph:[/green] {summary.total_nodes} nodes, "
-            f"{summary.total_functions} functions, {summary.total_files} files"
+            f"  [green]{CHECK}[/green] Code graph: "
+            f"{summary.total_nodes} nodes, "
+            f"{summary.total_functions} functions, "
+            f"{summary.total_files} files"
         )
     except Exception as e:
-        console.print(f"[dim]Graph analysis skipped: {e}[/dim]")
+        console.print(f"  [dim]Graph analysis skipped: {e}[/dim]")
 
 
 def _build_initial_state(config, team, sync) -> ProjectState:
     """Build the initial ProjectState from Supabase team data."""
     team_id = team["id"]
 
-    # Get problem statement
     problem = sync.get_problem_statement(team_id)
 
-    # Get roadmap and tasks
     roadmap = sync.get_roadmap(team_id)
     milestones = []
     if roadmap and roadmap.get("phases"):
@@ -467,7 +601,6 @@ def _build_initial_state(config, team, sync) -> ProjectState:
                 status="active" if i == 0 else "pending",
             ))
 
-    # Get tasks for progress tracking
     tasks = sync.get_roadmap_tasks(team_id)
     if tasks and milestones:
         for task in tasks:
@@ -481,7 +614,6 @@ def _build_initial_state(config, team, sync) -> ProjectState:
                         ms.functions_implemented / max(ms.functions_expected, 1) * 100
                     )
 
-    # Get members
     members_data = sync.get_members(team_id)
     team_members = []
     for m in members_data:
@@ -493,7 +625,6 @@ def _build_initial_state(config, team, sync) -> ProjectState:
             total_commits=m.get("total_commits", 0),
         ))
 
-    # Parse times
     now = datetime.now()
 
     def parse_dt(val, fallback):
@@ -531,16 +662,15 @@ def _install_hooks_if_git() -> None:
         try:
             from ghost_pm.hooks.installer import install_hooks
             install_hooks(Path.cwd())
-            console.print("[green]Git hooks installed[/green]")
+            console.print(f"  [green]{CHECK}[/green] Git hooks installed")
         except Exception as e:
-            console.print(f"[dim]Hooks skipped: {e}[/dim]")
+            console.print(f"  [dim]Hooks skipped: {e}[/dim]")
 
 
 def _start_daemon_background(config: GhostConfig) -> None:
     """Start the daemon as a background process."""
     pid_file = config.ghost_dir / "daemon.pid"
 
-    # Check if already running
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text().strip())
@@ -557,16 +687,9 @@ def _start_daemon_background(config: GhostConfig) -> None:
             stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
-        console.print(f"[green]Daemon started (PID {process.pid})[/green]")
+        console.print(f"  [green]{CHECK}[/green] Daemon started (PID {process.pid})")
     except Exception as e:
-        console.print(f"[dim]Daemon start failed: {e}[/dim]")
-
-
-def _make_progress_bar(percent: float) -> str:
-    """Render a compact progress bar."""
-    filled = int(percent / 5)
-    empty = 20 - filled
-    return f"{'#' * filled}{'.' * empty} {percent:.0f}%"
+        console.print(f"  [dim]Daemon start failed: {e}[/dim]")
 
 
 # ──────────────────────────────────────────────────────────────

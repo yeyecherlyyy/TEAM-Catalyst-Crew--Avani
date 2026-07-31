@@ -59,7 +59,7 @@ class GhostConfig:
     # LLM
     gemini_api_key: str = ""
     openai_api_key: str = ""
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-3.6-flash"
 
     # Team (unified with teammate's schema)
     team_id: str = ""          # UUID from teams table
@@ -94,7 +94,7 @@ class GhostConfig:
             supabase_key=os.getenv("SUPABASE_KEY", ghost_config.get("supabase_key", GHOST_SUPABASE_KEY)),
             gemini_api_key=os.getenv("GEMINI_API_KEY", ghost_config.get("gemini_api_key", "")),
             openai_api_key=os.getenv("OPENAI_API_KEY", ghost_config.get("openai_api_key", "")),
-            model=os.getenv("GHOST_MODEL", ghost_config.get("model", "gemini-2.0-flash")),
+            model=os.getenv("GHOST_MODEL", ghost_config.get("model", "gemini-3.6-flash")),
             team_id=ghost_config.get("team_id", ""),
             team_code=ghost_config.get("team_code", ghost_config.get("room_id", "")),
             member_name=os.getenv("GHOST_MEMBER_NAME", ghost_config.get("member_name", "")),
@@ -158,7 +158,7 @@ class GhostConfig:
     def llm_model_string(self) -> str:
         """Return the pydantic-ai model string based on available keys."""
         if self.gemini_api_key:
-            return self.model if self.model.startswith("google:") else "google:gemini-2.0-flash"
+            return self.model if self.model.startswith("google:") else "google:gemini-3.6-flash"
         if self.openai_api_key:
             return "openai:gpt-4o"
         return self.model

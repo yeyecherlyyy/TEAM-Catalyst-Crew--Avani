@@ -157,34 +157,43 @@ def main() -> None:
     state.save(config.state_path)
 
     # 3. Sync to Supabase
-    if config.has_supabase:
+    if config.has_supabase and config.team_id:
         try:
             from ghost_pm.sync.client import GhostSyncClient
 
             sync = GhostSyncClient(config)
+
+            # Record commit — push_commit expects (team_id, commit_data)
+            push_data = {
+                "member_name": config.member_name,
+                "commit_hash": commit_info["hash"][:8],
+                "message": commit_info["message"],
+                "files_changed": commit_info["files"],
+                "insertions": commit_info.get("insertions", 0),
+                "deletions": commit_info.get("deletions", 0),
+            }
             sync.push_commit(
-                room_id=config.room_id,
-                member_name=config.member_name,
-                commit_data=commit_info,
-                milestone_id=state.active_milestone_id,
+                team_id=config.team_id,
+                commit_data=push_data,
             )
 
             # Push graph snapshot
             sync.push_graph_snapshot(
-                room_id=config.room_id,
+                team_id=config.team_id,
                 member_name=config.member_name,
                 summary=state.code_graph,
             )
 
-            # Update member activity
-            sync.update_member_activity(
-                room_id=config.room_id,
-                member_name=config.member_name,
-                data={
-                    "total_commits": state.total_commits,
-                    "last_active": datetime.now().isoformat(),
-                },
-            )
+            # Update member activity — uses team_id + user_id
+            if config.user_id:
+                sync.update_member_activity(
+                    team_id=config.team_id,
+                    user_id=config.user_id,
+                    data={
+                        "total_commits": state.total_commits,
+                        "last_active": datetime.now().isoformat(),
+                    },
+                )
             console.print("[green]✓[/green] Synced to cloud")
         except Exception as e:
             console.print(f"[dim]Supabase sync: {e}[/dim]")
