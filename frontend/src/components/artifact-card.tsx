@@ -17,7 +17,7 @@ import type { Artifact, ArtifactSection, ArtifactType } from "../lib/gemini";
 
 // ── Icon + color mapping per artifact type ───────────
 const TYPE_META: Record<
-  ArtifactType,
+  string,
   { icon: typeof FileCode2; label: string; gradient: string; border: string }
 > = {
   pitch_deck: {

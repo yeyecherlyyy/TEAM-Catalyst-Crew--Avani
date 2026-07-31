@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Menu,
-  Sparkle,
   Send,
   Sun,
   Moon,

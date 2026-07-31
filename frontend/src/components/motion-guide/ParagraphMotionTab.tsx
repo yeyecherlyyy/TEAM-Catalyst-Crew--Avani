@@ -47,7 +47,7 @@ export function ParagraphMotionTab() {
             className="text-[15px] leading-[1.6] text-foreground/80 font-medium"
           >
             {lines.map((line, i) => (
-              <motion.div key={i} variants={itemVariants}>
+              <motion.div key={i} variants={itemVariants as any}>
                 {i === 0 ? <span className="font-bold text-cyan-400">{line}</span> : line}
               </motion.div>
             ))}

@@ -4,6 +4,8 @@
 
 **Autonomous Hackathon Intelligence System**
 
+[**🚀 Live Deployment (Vercel)**](https://team-catalyst-crew-avani.vercel.app/)
+
 A multi-surface platform that coaches teams from ideation through pitch defense — combining real-time AI advisory, evidence-based judging, codebase auditing, and live collaboration into a single orchestrated system.
 
 [![Built with Gemini](https://img.shields.io/badge/AI-Gemini_2.5_Flash-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev)

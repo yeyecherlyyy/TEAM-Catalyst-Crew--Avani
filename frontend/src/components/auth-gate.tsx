@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useAuth } from "../lib/auth";
-import { Sparkle, LogIn, UserPlus, Mail, Lock, User, Loader2, X } from "lucide-react";
+import { LogIn, UserPlus, Mail, Lock, User, Loader2, X } from "lucide-react";
 
 interface AuthGateProps {
   open: boolean;
