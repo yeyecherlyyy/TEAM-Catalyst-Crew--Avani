@@ -32,7 +32,7 @@ export function TextVelocityTab() {
             initial="initial"
             animate="animate"
             exit="initial"
-            variants={variants[animationType]}
+            variants={variants[animationType] as any}
             className="text-4xl md:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-br from-teal-400 to-cyan-500"
           >
             CONNECTIVITY
