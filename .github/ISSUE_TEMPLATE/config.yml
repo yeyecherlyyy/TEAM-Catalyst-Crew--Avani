@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/yeyecherlyyy/TEAM-Catalyst-Crew--Avani#readme
+    about: Check the README for setup instructions and architecture details.
+  - name: Security Vulnerability
+    url: https://github.com/yeyecherlyyy/TEAM-Catalyst-Crew--Avani/security/policy
+    about: Report security vulnerabilities through the security policy, not public issues.
