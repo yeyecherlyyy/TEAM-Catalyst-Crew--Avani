@@ -30,24 +30,27 @@ class GhostSyncClient:
     def client(self):
         """Lazy-init Supabase client with auth if available."""
         if self._client is None:
-            from supabase import create_client
+            from supabase import create_client, ClientOptions
+
+            options = ClientOptions()
+            if self.config.access_token:
+                options.headers.update({"Authorization": f"Bearer {self.config.access_token}"})
 
             self._client = create_client(
                 self.config.supabase_url,
                 self.config.supabase_key,
+                options=options,
             )
 
-            # Set auth session if we have tokens
+            # Set auth session if we have tokens (for auto-refresh)
             if self.config.access_token:
                 try:
                     self._client.auth.set_session(
                         self.config.access_token,
                         self.config.refresh_token,
                     )
-                    # Force postgrest to use the token for table & rpc queries
-                    self._client.postgrest.auth(self.config.access_token)
                 except Exception:
-                    pass  # Continue without auth — RLS may block some ops
+                    pass  # Expired token or network error, but the Bearer header is still sent
 
         return self._client
 
@@ -56,9 +59,29 @@ class GhostSyncClient:
     # ──────────────────────────────────────────────────────
 
     def get_team_by_code(self, team_code: str) -> dict | None:
-        """Fetch team data by team_code (the human-readable join code)."""
+        """Fetch team data by team_code (the human-readable join code).
+
+        Strategy:
+        1. Try direct query on teams table (works if user is already a member via RLS).
+        2. If that fails, try the RPC to join + fetch (requires valid auth.uid()).
+        3. If RPC also fails, return None.
+        """
+        # ── Attempt 1: Direct query (works for existing members) ──
         try:
-            # First use the RPC to securely join the team and bypass RLS to get the team ID
+            result = (
+                self.client.table("teams")
+                .select("*")
+                .eq("team_code", team_code)
+                .single()
+                .execute()
+            )
+            if result.data:
+                return result.data
+        except Exception:
+            pass  # RLS blocked or team not found — try RPC next
+
+        # ── Attempt 2: RPC join (for first-time joins) ──
+        try:
             rpc_res = self.client.rpc("join_team_by_code", {"p_team_code": team_code}).execute()
             team_id = rpc_res.data
 

@@ -178,3 +178,114 @@
 @utility glow-ring {
   box-shadow: var(--shadow-neon);
 }
+
+/* ── Artifact Build Animations ──────────────────────── */
+@keyframes artifact-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes artifact-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--neon) 40%, transparent); }
+  50% { box-shadow: 0 0 20px 4px color-mix(in oklab, var(--neon) 20%, transparent); }
+}
+
+@keyframes progress-fill {
+  from { width: 0%; }
+}
+
+.artifact-section {
+  animation: artifact-slide-up 0.4s ease-out both;
+}
+
+.artifact-section:nth-child(1) { animation-delay: 0.05s; }
+.artifact-section:nth-child(2) { animation-delay: 0.12s; }
+.artifact-section:nth-child(3) { animation-delay: 0.19s; }
+.artifact-section:nth-child(4) { animation-delay: 0.26s; }
+.artifact-section:nth-child(5) { animation-delay: 0.33s; }
+.artifact-section:nth-child(6) { animation-delay: 0.40s; }
+.artifact-section:nth-child(7) { animation-delay: 0.47s; }
+.artifact-section:nth-child(8) { animation-delay: 0.54s; }
+
+.artifact-shell {
+  background: color-mix(in oklab, var(--surface) 85%, transparent);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+}
+
+.artifact-code pre {
+  margin: 0;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--surface-2) 60%, oklch(0.15 0.01 50));
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+.artifact-code pre code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+}
+
+/* highlight.js theme overrides for dark mode */
+.dark .hljs {
+  background: transparent !important;
+  color: oklch(0.88 0.01 80) !important;
+}
+
+.hljs-keyword { color: oklch(0.75 0.12 300) !important; }
+.hljs-string { color: oklch(0.78 0.12 140) !important; }
+.hljs-comment { color: oklch(0.55 0.01 80) !important; font-style: italic; }
+.hljs-function { color: oklch(0.82 0.1 250) !important; }
+.hljs-number { color: oklch(0.8 0.12 70) !important; }
+.hljs-built_in { color: oklch(0.78 0.1 200) !important; }
+.hljs-title { color: oklch(0.82 0.1 250) !important; }
+.hljs-attr { color: oklch(0.8 0.08 60) !important; }
+
+/* Roadmap timeline */
+.roadmap-node {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.roadmap-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -8px color-mix(in oklab, var(--neon) 30%, transparent);
+}
+
+.roadmap-connector {
+  background: linear-gradient(180deg, var(--neon), color-mix(in oklab, var(--neon) 30%, transparent));
+}
+
+/* Scrollbar styling for artifact viewer */
+.artifact-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.artifact-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.artifact-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--foreground) 15%, transparent);
+  border-radius: 3px;
+}
+.artifact-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--foreground) 25%, transparent);
+}

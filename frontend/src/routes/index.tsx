@@ -21,7 +21,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { AuthModal } from "../components/auth-gate";
-import { ArtifactGrid } from "../components/artifact-card";
+import { ArtifactViewer, ArtifactListItem } from "../components/artifact-viewer";
 import { CreateTeamModal, JoinTeamModal } from "../components/team-modals";
 import { JudgePanel } from "../components/judge-panel";
 import { CodeGraphPanel } from "../components/code-graph";
@@ -94,6 +94,7 @@ function Dashboard() {
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [showJoinTeam, setShowJoinTeam] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [selectedArtifactIndex, setSelectedArtifactIndex] = useState<number | null>(null);
 
   const WELCOME: ChatMessage = {
     role: "bot",
@@ -234,6 +235,8 @@ function Dashboard() {
 
         if (response.artifacts.length > 0) {
           setAllArtifacts((prev) => [...response.artifacts, ...prev]);
+          // Auto-select the first new artifact
+          setSelectedArtifactIndex(0);
 
           // Persist artifacts to DB
           if (teamId) {
@@ -492,9 +495,9 @@ function Dashboard() {
       {/* ── Center pane ──────────────────────────────── */}
       <main className="stage flex min-w-0 flex-1 flex-col overflow-hidden">
         {activeView === "artifacts" && (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
+          <div className="flex h-full">
             {allArtifacts.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center h-full">
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
                 <div className="grid size-20 place-items-center rounded-3xl border border-border bg-surface/50">
                   <Package className="size-10 text-muted-foreground/40" />
                 </div>
@@ -503,22 +506,42 @@ function Dashboard() {
                   Send a problem statement in the chat to generate pitch decks, specs, and architecture docs.
                 </p>
               </div>
+            ) : selectedArtifactIndex !== null && allArtifacts[selectedArtifactIndex] ? (
+              /* ── Full artifact viewer ── */
+              <div className="flex-1 overflow-hidden">
+                <ArtifactViewer
+                  artifact={allArtifacts[selectedArtifactIndex]}
+                  onBack={() => setSelectedArtifactIndex(null)}
+                  version={1}
+                />
+              </div>
             ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
+              /* ── Artifact list (grid + list hybrid) ── */
+              <div className="flex-1 overflow-y-auto overflow-x-hidden artifact-scroll px-6 py-6">
+                <div className="mb-5 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-muted-foreground">
                     Generated Artifacts
                     <span className="ml-2 rounded-md bg-surface-2 px-2 py-0.5 text-[10px]">{allArtifacts.length}</span>
                   </h2>
                 </div>
-                <ArtifactGrid artifacts={allArtifacts} />
+                {/* Grid view for quick overview */}
+                <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
+                  {allArtifacts.map((artifact, i) => (
+                    <ArtifactListItem
+                      key={`${artifact.type}-${i}`}
+                      artifact={artifact}
+                      isActive={false}
+                      onClick={() => setSelectedArtifactIndex(i)}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>
         )}
 
         {activeView === "judge" && <JudgePanel />}
-        {activeView === "graph" && <CodeGraphPanel />}
+        {activeView === "graph" && <CodeGraphPanel teamId={teamId} />}
         {activeView === "roadmap" && <RoadmapPanel teamId={teamId} />}
       </main>
 

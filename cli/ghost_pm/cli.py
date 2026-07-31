@@ -93,26 +93,35 @@ def _time_display(hours: float) -> str:
         return f"[green]{CLOCK} {hours:.1f}h remaining[/green]"
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version="2.0.1", prog_name="ghostpm")
-def cli() -> None:
-    """Ghost-PM — AI-Powered CLI Project Manager for Hackathons.
-
-    \b
-    Get started:
-      1. Visit the web dashboard to create a team
-      2. Run: ghostpm join <team_code>
-      3. You're in! Use /help for commands.
-
-    \b
-    Commands:
-      ghostpm login     — Authenticate with email/password
-      ghostpm signup    — Create a new account
-      ghostpm join CODE — Join a team & enter interactive mode
-      ghostpm status    — Quick project status check
-      ghostpm watch     — Live auto-refreshing dashboard
-    """
-    pass
+@click.pass_context
+def cli(ctx: click.Context) -> None:
+    """Ghost-PM — AI-Powered CLI Project Manager for Hackathons."""
+    if ctx.invoked_subcommand is None:
+        console.print(GHOST_LOGO)
+        console.print()
+        console.print(
+            f"  [dim]v2.0.1[/dim]  {ARROW}  "
+            f"[bold]AI-Powered CLI Project Manager for Hackathons[/bold]"
+        )
+        console.print(Rule(style="cyan"))
+        console.print()
+        console.print(Panel(
+            f"  [bold cyan]Get Started[/bold cyan]\n"
+            f"    1. Visit the web dashboard to create a team\n"
+            f"    2. Run: [bold]ghostpm join <team_code>[/bold]\n"
+            f"    3. You're in! Use [bold]/help[/bold] for commands.",
+            expand=False, border_style="cyan", padding=(1, 2)
+        ))
+        console.print()
+        console.print("  [bold]Commands:[/bold]")
+        console.print(f"    [cyan]login[/cyan]     — Authenticate with email/password")
+        console.print(f"    [cyan]signup[/cyan]    — Create a new account")
+        console.print(f"    [cyan]join[/cyan]      — Join a team & enter interactive mode")
+        console.print(f"    [cyan]status[/cyan]    — Quick project status check")
+        console.print(f"    [cyan]watch[/cyan]     — Live auto-refreshing dashboard")
+        console.print()
 
 
 # ──────────────────────────────────────────────────────────────
@@ -194,14 +203,15 @@ def join(team_code: str, name: str | None) -> None:
             f"  Sign up at [cyan]{config.ui_url}[/cyan] or create one below.",
             expand=False, border_style="cyan", padding=(1, 2),
         ))
-        config = ensure_authenticated(config)
-        if not config:
-            console.print(f"  [red]{CROSS}[/red] Authentication required to join a team.")
-            return
-    else:
-        console.print(
-            f"  [green]{CHECK}[/green] Authenticated as [bold]{config.member_name}[/bold]"
-        )
+
+    config = ensure_authenticated(config)
+    if not config:
+        console.print(f"  [red]{CROSS}[/red] Authentication required to join a team.")
+        return
+
+    console.print(
+        f"  [green]{CHECK}[/green] Authenticated as [bold]{config.member_name}[/bold]"
+    )
 
     if name:
         config.member_name = name
@@ -274,6 +284,9 @@ def join(team_code: str, name: str | None) -> None:
     # Run initial graph analysis
     console.print(f"  [dim]{SPARK} Analyzing codebase with graphify...[/dim]")
     _run_initial_graph(config, state, sync, team_id, config.member_name)
+    
+    # Save again after graph is built
+    state.save(config.state_path)
 
     # Install git hooks
     _install_hooks_if_git()

@@ -109,11 +109,6 @@ export async function judgePitch(ideaText: string): Promise<JudgeResult> {
   }
 
   const contents = [
-    { role: "user", parts: [{ text: JUDGE_SYSTEM_PROMPT }] },
-    {
-      role: "model",
-      parts: [{ text: '{"scores":{},"questions":[],"readiness_summary":"Ready to judge."}' }],
-    },
     {
       role: "user",
       parts: [{ text: `IDEA:\n${ideaText}\n\nEvaluate this hackathon submission.` }],
@@ -125,16 +120,18 @@ export async function judgePitch(ideaText: string): Promise<JudgeResult> {
     const key = nextKey();
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            systemInstruction: { parts: [{ text: JUDGE_SYSTEM_PROMPT }] },
             contents,
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.4,
               maxOutputTokens: 4096,
+              thinkingConfig: { thinkingBudget: 0 },
             },
           }),
         }
@@ -151,7 +148,9 @@ export async function judgePitch(ideaText: string): Promise<JudgeResult> {
       }
 
       const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const parts = data?.candidates?.[0]?.content?.parts ?? [];
+      const textPart = parts.find((p: Record<string, unknown>) => typeof p.text === "string");
+      const text = textPart?.text ?? "";
       return JSON.parse(text) as JudgeResult;
     } catch (err) {
       lastError = err instanceof Error ? err.message : "Unknown error";

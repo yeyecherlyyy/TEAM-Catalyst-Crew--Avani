@@ -33,7 +33,8 @@ export type ArtifactType =
   | "scorecard"
   | "roadmap"
   | "solution_brief"
-  | "user_stories";
+  | "user_stories"
+  | "motion_guide";
 
 export interface ArtifactSection {
   heading: string;
@@ -75,7 +76,7 @@ ARTIFACT GENERATION RULES:
 
 ARTIFACT OBJECT SHAPE:
 {
-  "type": "pitch_deck" | "tech_spec" | "architecture" | "demo_script" | "scorecard" | "roadmap" | "solution_brief" | "user_stories",
+  "type": "pitch_deck" | "tech_spec" | "architecture" | "demo_script" | "scorecard" | "roadmap" | "solution_brief" | "user_stories" | "motion_guide",
   "title": "Short descriptive title",
   "summary": "One-line summary of what this artifact covers",
   "confidence": 75-99,
@@ -118,21 +119,8 @@ export async function callGemini(
     };
   }
 
-  // Build contents array with history
-  const contents = [
-    // System instruction as first user turn
-    { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-    {
-      role: "model",
-      parts: [
-        {
-          text: JSON.stringify({
-            message: "Ready. I'll respond in strict JSON and only generate artifacts when you share a problem statement or request a deliverable.",
-            artifacts: [],
-          }),
-        },
-      ],
-    },
+  // Build contents array with history — merge consecutive same-role turns
+  const rawContents = [
     // Conversation history
     ...conversationHistory.map((entry) => ({
       role: entry.role === "user" ? "user" : "model",
@@ -142,22 +130,35 @@ export async function callGemini(
     { role: "user", parts: [{ text: userMessage }] },
   ];
 
+  // Merge consecutive same-role messages (API rejects them)
+  const contents: typeof rawContents = [];
+  for (const msg of rawContents) {
+    const last = contents[contents.length - 1];
+    if (last && last.role === msg.role) {
+      last.parts.push(...msg.parts);
+    } else {
+      contents.push({ ...msg, parts: [...msg.parts] });
+    }
+  }
+
   // Try all keys before giving up
   let lastError = "";
   for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
     const key = nextKey();
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents,
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.6,
               maxOutputTokens: 4096,
+              thinkingConfig: { thinkingBudget: 0 },
             },
           }),
         }
@@ -190,11 +191,20 @@ export async function callGemini(
       }
 
       const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      // Extract text from the first part that actually has a 'text' field (skip thinking parts)
+      const parts = data?.candidates?.[0]?.content?.parts ?? [];
+      const textPart = parts.find((p: Record<string, unknown>) => typeof p.text === "string");
+      const text = textPart?.text ?? "";
 
       // Parse JSON response
       try {
-        const parsed: GeminiResponse = JSON.parse(text);
+        let cleanText = text.trim();
+        const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match) {
+          cleanText = match[1].trim();
+        }
+        
+        const parsed: GeminiResponse = JSON.parse(cleanText);
         // Validate structure
         if (!parsed.message && !parsed.artifacts) {
           return { message: text, artifacts: [] };

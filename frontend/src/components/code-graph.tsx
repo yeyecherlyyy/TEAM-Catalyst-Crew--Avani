@@ -2,7 +2,9 @@
 // Ported from cli/ghost_pm/graph_parser.py
 
 import { useState, useEffect, useRef } from "react";
-import { Network, AlertTriangle, FileCode, Box, Maximize2, Minimize2 } from "lucide-react";
+import { Network, AlertTriangle, FileCode, Box, Maximize2, Minimize2, View } from "lucide-react";
+import { Graph3D } from "./Graph3D";
+import { supabase } from "../lib/supabase";
 
 // ── Types ────────────────────────────────────────────
 export interface GraphNode {
@@ -99,6 +101,104 @@ export function parseGraphJson(raw: unknown): GraphSummary {
   };
 }
 
+// ── Demo graph reflecting the actual project structure ──
+function buildDemoGraph(): GraphSummary {
+  const demoNodes: GraphNode[] = [
+    // CLI core (community 0)
+    { id: "cli.py", label: "cli/ghost_pm/cli.py", type: "file", language: "python", community: 0, connections: 8 },
+    { id: "repl.py", label: "cli/ghost_pm/repl.py", type: "file", language: "python", community: 0, connections: 7 },
+    { id: "config.py", label: "cli/ghost_pm/config.py", type: "file", language: "python", community: 0, connections: 6 },
+    { id: "state.py", label: "cli/ghost_pm/state.py", type: "file", language: "python", community: 0, connections: 5 },
+    { id: "daemon.py", label: "cli/ghost_pm/daemon.py", type: "file", language: "python", community: 0, connections: 4 },
+    // AI & Sync (community 1)
+    { id: "ai_advisor.py", label: "cli/ghost_pm/ai_advisor.py", type: "file", language: "python", community: 1, connections: 4 },
+    { id: "sync_client.py", label: "cli/ghost_pm/sync/client.py", type: "file", language: "python", community: 1, connections: 6 },
+    { id: "auditor.py", label: "cli/ghost_pm/auditor.py", type: "file", language: "python", community: 1, connections: 3 },
+    { id: "graph_parser.py", label: "cli/ghost_pm/graph_parser.py", type: "file", language: "python", community: 1, connections: 3 },
+    // Hooks (community 2)
+    { id: "pre_commit.py", label: "hooks/pre_commit.py", type: "file", language: "python", community: 2, connections: 3 },
+    { id: "post_commit.py", label: "hooks/post_commit.py", type: "file", language: "python", community: 2, connections: 3 },
+    { id: "installer.py", label: "hooks/installer.py", type: "file", language: "python", community: 2, connections: 2 },
+    // Frontend routes (community 3)
+    { id: "index.tsx", label: "routes/index.tsx", type: "file", language: "typescript", community: 3, connections: 9 },
+    { id: "root.tsx", label: "routes/__root.tsx", type: "file", language: "typescript", community: 3, connections: 3 },
+    // Frontend components (community 4)
+    { id: "code-graph.tsx", label: "components/code-graph.tsx", type: "file", language: "typescript", community: 4, connections: 4 },
+    { id: "roadmap-panel.tsx", label: "components/roadmap-panel.tsx", type: "file", language: "typescript", community: 4, connections: 5 },
+    { id: "judge-panel.tsx", label: "components/judge-panel.tsx", type: "file", language: "typescript", community: 4, connections: 3 },
+    { id: "artifact-viewer.tsx", label: "components/artifact-viewer.tsx", type: "file", language: "typescript", community: 4, connections: 5 },
+    { id: "auth-gate.tsx", label: "components/auth-gate.tsx", type: "file", language: "typescript", community: 4, connections: 3 },
+    { id: "Graph3D.tsx", label: "components/Graph3D.tsx", type: "file", language: "typescript", community: 4, connections: 2 },
+    // Frontend libs (community 5)
+    { id: "gemini.ts", label: "lib/gemini.ts", type: "file", language: "typescript", community: 5, connections: 4 },
+    { id: "roadmap.ts", label: "lib/roadmap.ts", type: "file", language: "typescript", community: 5, connections: 3 },
+    { id: "judge.ts", label: "lib/judge.ts", type: "file", language: "typescript", community: 5, connections: 2 },
+    { id: "auth.ts", label: "lib/auth.ts", type: "file", language: "typescript", community: 5, connections: 3 },
+    { id: "realtime.ts", label: "lib/realtime.ts", type: "file", language: "typescript", community: 5, connections: 2 },
+    { id: "supabase.ts", label: "lib/supabase.ts", type: "file", language: "typescript", community: 5, connections: 5 },
+  ];
+
+  const demoEdges: GraphEdge[] = [
+    // CLI internal
+    { source: "cli.py", target: "repl.py", type: "imports" },
+    { source: "cli.py", target: "config.py", type: "imports" },
+    { source: "cli.py", target: "state.py", type: "imports" },
+    { source: "cli.py", target: "sync_client.py", type: "imports" },
+    { source: "cli.py", target: "ai_advisor.py", type: "imports" },
+    { source: "cli.py", target: "daemon.py", type: "imports" },
+    { source: "cli.py", target: "auditor.py", type: "imports" },
+    { source: "cli.py", target: "graph_parser.py", type: "imports" },
+    { source: "repl.py", target: "config.py", type: "imports" },
+    { source: "repl.py", target: "state.py", type: "imports" },
+    { source: "repl.py", target: "sync_client.py", type: "imports" },
+    { source: "repl.py", target: "ai_advisor.py", type: "imports" },
+    { source: "repl.py", target: "auditor.py", type: "imports" },
+    { source: "repl.py", target: "graph_parser.py", type: "imports" },
+    { source: "daemon.py", target: "config.py", type: "imports" },
+    { source: "daemon.py", target: "state.py", type: "imports" },
+    { source: "daemon.py", target: "ai_advisor.py", type: "imports" },
+    { source: "sync_client.py", target: "config.py", type: "imports" },
+    { source: "sync_client.py", target: "state.py", type: "imports" },
+    { source: "ai_advisor.py", target: "config.py", type: "imports" },
+    { source: "ai_advisor.py", target: "state.py", type: "imports" },
+    { source: "auditor.py", target: "config.py", type: "imports" },
+    { source: "auditor.py", target: "state.py", type: "imports" },
+    { source: "graph_parser.py", target: "state.py", type: "imports" },
+    // Hooks
+    { source: "pre_commit.py", target: "config.py", type: "imports" },
+    { source: "pre_commit.py", target: "state.py", type: "imports" },
+    { source: "post_commit.py", target: "config.py", type: "imports" },
+    { source: "post_commit.py", target: "sync_client.py", type: "imports" },
+    { source: "installer.py", target: "pre_commit.py", type: "imports" },
+    { source: "installer.py", target: "post_commit.py", type: "imports" },
+    // Frontend routes → components
+    { source: "index.tsx", target: "code-graph.tsx", type: "imports" },
+    { source: "index.tsx", target: "roadmap-panel.tsx", type: "imports" },
+    { source: "index.tsx", target: "judge-panel.tsx", type: "imports" },
+    { source: "index.tsx", target: "artifact-viewer.tsx", type: "imports" },
+    { source: "index.tsx", target: "auth-gate.tsx", type: "imports" },
+    { source: "index.tsx", target: "gemini.ts", type: "imports" },
+    { source: "index.tsx", target: "auth.ts", type: "imports" },
+    { source: "index.tsx", target: "realtime.ts", type: "imports" },
+    { source: "index.tsx", target: "supabase.ts", type: "imports" },
+    // Components → libs
+    { source: "code-graph.tsx", target: "supabase.ts", type: "imports" },
+    { source: "code-graph.tsx", target: "Graph3D.tsx", type: "imports" },
+    { source: "roadmap-panel.tsx", target: "roadmap.ts", type: "imports" },
+    { source: "roadmap-panel.tsx", target: "supabase.ts", type: "imports" },
+    { source: "judge-panel.tsx", target: "judge.ts", type: "imports" },
+    { source: "artifact-viewer.tsx", target: "gemini.ts", type: "imports" },
+    { source: "auth-gate.tsx", target: "auth.ts", type: "imports" },
+    { source: "auth-gate.tsx", target: "supabase.ts", type: "imports" },
+    { source: "roadmap.ts", target: "supabase.ts", type: "imports" },
+    { source: "judge.ts", target: "supabase.ts", type: "imports" },
+    { source: "auth.ts", target: "supabase.ts", type: "imports" },
+    { source: "realtime.ts", target: "supabase.ts", type: "imports" },
+  ];
+
+  return parseGraphJson({ nodes: demoNodes, edges: demoEdges });
+}
+
 // ── Force-directed layout (simple spring model) ──────
 function useForceLayout(
   nodes: GraphNode[],
@@ -176,7 +276,7 @@ function useForceLayout(
 }
 
 // ── Graph Visualization Component ────────────────────
-export function CodeGraphPanel() {
+export function CodeGraphPanel({ teamId }: { teamId?: string | null }) {
   const [graphData, setGraphData] = useState<GraphSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -186,14 +286,34 @@ export function CodeGraphPanel() {
 
   const W = 800, H = 500;
 
-  // Load graph.json
+  // Load graph data
   useEffect(() => {
     async function load() {
+      if (!teamId) {
+        // No team — use demo graph
+        setGraphData(buildDemoGraph());
+        setLoading(false);
+        return;
+      }
       try {
-        // Try to fetch from the graphify-out directory
-        const res = await fetch("/graphify-out/graph.json");
-        if (!res.ok) throw new Error("graph.json not found");
-        const raw = await res.json();
+        setLoading(true);
+        // Fetch from Supabase
+        const { data, error } = await supabase
+          .from("code_graph_snapshots")
+          .select("graph_data")
+          .eq("team_id", teamId)
+          .order("snapshot_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error || !data) {
+          // Fallback to demo if no snapshot pushed yet
+          setGraphData(buildDemoGraph());
+          setLoading(false);
+          return;
+        }
+        
+        const raw = data.graph_data;
         const summary = parseGraphJson(raw);
         // Limit to 80 most connected nodes for performance
         const topNodes = [...summary.nodes]
@@ -205,13 +325,16 @@ export function CodeGraphPanel() {
         );
         setGraphData({ ...summary, nodes: topNodes, edges: topEdges });
       } catch {
-        setError("Could not load code graph. Run graphify first to generate graph.json.");
+        // Fallback to demo graph on any error
+        setGraphData(buildDemoGraph());
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [teamId]);
+
+  const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
 
   const positions = useForceLayout(
     graphData?.nodes || [],
@@ -254,74 +377,106 @@ export function CodeGraphPanel() {
             </p>
           </div>
         </div>
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-surface-2/50 p-1">
+          <button
+            onClick={() => setViewMode("3D")}
+            className={`rounded-lg px-3 py-1 text-[10px] font-medium transition-all ${
+              viewMode === "3D"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            3D View
+          </button>
+          <button
+            onClick={() => setViewMode("2D")}
+            className={`rounded-lg px-3 py-1 text-[10px] font-medium transition-all ${
+              viewMode === "2D"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            2D View
+          </button>
+        </div>
       </div>
 
-      {/* Graph SVG */}
+      {/* Graph Visualizer */}
       <div className="flex-1 overflow-hidden px-4 py-3">
-        <svg
-          ref={svgRef}
-          viewBox={`0 0 ${W} ${H}`}
-          className="h-full w-full rounded-xl border border-border bg-surface-2/20"
-        >
-          {/* Edges */}
-          {graphData.edges.map((e, i) => {
-            const from = positions.get(e.source);
-            const to = positions.get(e.target);
-            if (!from || !to) return null;
-            const isHighlighted =
-              hoveredNode === e.source || hoveredNode === e.target;
-            return (
-              <line
-                key={i}
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke={isHighlighted ? "rgba(139,92,246,0.6)" : "rgba(128,128,128,0.15)"}
-                strokeWidth={isHighlighted ? 1.5 : 0.5}
-              />
-            );
-          })}
-
-          {/* Nodes */}
-          {graphData.nodes.map((n) => {
-            const pos = positions.get(n.id);
-            if (!pos) return null;
-            const isGod = graphData.godNodes.some((g) => g.id === n.id);
-            const r = Math.max(3, Math.min(12, n.connections * 0.8 + 2));
-            const color = COMMUNITY_COLORS[n.community % COMMUNITY_COLORS.length];
-
-            return (
-              <g
-                key={n.id}
-                onMouseEnter={() => setHoveredNode(n.id)}
-                onMouseLeave={() => setHoveredNode(null)}
-                onClick={() => setSelectedNode(n)}
-                className="cursor-pointer"
-              >
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={r}
-                  fill={color}
-                  opacity={hoveredNode && hoveredNode !== n.id ? 0.3 : 0.8}
-                  stroke={isGod ? "#ef4444" : "none"}
-                  strokeWidth={isGod ? 2 : 0}
+        {viewMode === "3D" ? (
+          <Graph3D
+            nodes={graphData.nodes}
+            edges={graphData.edges}
+            godNodes={graphData.godNodes}
+            selectedNode={selectedNode}
+            setSelectedNode={setSelectedNode}
+          />
+        ) : (
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${W} ${H}`}
+            className="h-full w-full rounded-xl border border-border bg-surface-2/20"
+          >
+            {/* Edges */}
+            {graphData.edges.map((e, i) => {
+              const from = positions.get(e.source);
+              const to = positions.get(e.target);
+              if (!from || !to) return null;
+              const isHighlighted =
+                hoveredNode === e.source || hoveredNode === e.target;
+              return (
+                <line
+                  key={i}
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  stroke={isHighlighted ? "rgba(139,92,246,0.6)" : "rgba(128,128,128,0.15)"}
+                  strokeWidth={isHighlighted ? 1.5 : 0.5}
                 />
-                {(hoveredNode === n.id || r > 6) && (
-                  <text
-                    x={pos.x}
-                    y={pos.y - r - 4}
-                    textAnchor="middle"
-                    className="fill-foreground text-[6px] font-medium"
-                  >
-                    {n.label.split("/").pop()?.split(".")[0] || n.label}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
+              );
+            })}
+
+            {/* Nodes */}
+            {graphData.nodes.map((n) => {
+              const pos = positions.get(n.id);
+              if (!pos) return null;
+              const isGod = graphData.godNodes.some((g) => g.id === n.id);
+              const r = Math.max(3, Math.min(12, n.connections * 0.8 + 2));
+              const color = COMMUNITY_COLORS[n.community % COMMUNITY_COLORS.length];
+
+              return (
+                <g
+                  key={n.id}
+                  onMouseEnter={() => setHoveredNode(n.id)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => setSelectedNode(n)}
+                  className="cursor-pointer"
+                >
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={r}
+                    fill={color}
+                    opacity={hoveredNode && hoveredNode !== n.id ? 0.3 : 0.8}
+                    stroke={isGod ? "#ef4444" : "none"}
+                    strokeWidth={isGod ? 2 : 0}
+                  />
+                  {(hoveredNode === n.id || r > 6) && (
+                    <text
+                      x={pos.x}
+                      y={pos.y - r - 4}
+                      textAnchor="middle"
+                      className="fill-foreground text-[6px] font-medium"
+                    >
+                      {n.label.split("/").pop()?.split(".")[0] || n.label}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        )}
       </div>
 
       {/* Stats Bar */}
@@ -343,25 +498,77 @@ export function CodeGraphPanel() {
           </span>
         </div>
 
-        {selectedNode && (
-          <div className="mt-2 rounded-lg border border-border bg-surface-2/30 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <FileCode className="size-3 text-muted-foreground" />
-              <span className="text-[11px] font-semibold">{selectedNode.label}</span>
-              <span className="rounded-md bg-surface px-1.5 py-0.5 text-[9px] text-muted-foreground">
-                {selectedNode.type}
-              </span>
-              <span className="text-[9px] text-muted-foreground">
-                {selectedNode.connections} connections
-              </span>
-              {selectedNode.language && (
-                <span className="text-[9px] text-muted-foreground">
-                  · {selectedNode.language}
+        {selectedNode && (() => {
+          // Find connected nodes
+          const incoming = graphData.edges
+            .filter((e) => e.target === selectedNode.id)
+            .map((e) => graphData.nodes.find((n) => n.id === e.source))
+            .filter(Boolean) as GraphNode[];
+          const outgoing = graphData.edges
+            .filter((e) => e.source === selectedNode.id)
+            .map((e) => graphData.nodes.find((n) => n.id === e.target))
+            .filter(Boolean) as GraphNode[];
+          const isGodNode = graphData.godNodes.some((g) => g.id === selectedNode.id);
+
+          return (
+            <div className="mt-2 rounded-xl border border-border bg-surface-2/30 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <FileCode className="size-4 text-primary" />
+                <span className="text-[12px] font-bold">{selectedNode.label}</span>
+                <span className="rounded-md bg-surface px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                  {selectedNode.type}
                 </span>
+                {selectedNode.language && (
+                  <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                    {selectedNode.language}
+                  </span>
+                )}
+                <span className="text-[9px] text-muted-foreground ml-auto">
+                  {selectedNode.connections} connections
+                </span>
+                {isGodNode && (
+                  <span className="rounded-md bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold text-red-400">
+                    ⚠ God Node
+                  </span>
+                )}
+              </div>
+              {(incoming.length > 0 || outgoing.length > 0) && (
+                <div className="flex gap-4 text-[9px]">
+                  {incoming.length > 0 && (
+                    <div>
+                      <span className="font-semibold text-muted-foreground">Imported by: </span>
+                      {incoming.slice(0, 5).map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => setSelectedNode(n)}
+                          className="inline-block mr-1 rounded bg-surface px-1.5 py-0.5 text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                        >
+                          {n.label.split("/").pop()}
+                        </button>
+                      ))}
+                      {incoming.length > 5 && <span className="text-muted-foreground/50">+{incoming.length - 5} more</span>}
+                    </div>
+                  )}
+                  {outgoing.length > 0 && (
+                    <div>
+                      <span className="font-semibold text-muted-foreground">Imports: </span>
+                      {outgoing.slice(0, 5).map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => setSelectedNode(n)}
+                          className="inline-block mr-1 rounded bg-surface px-1.5 py-0.5 text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                        >
+                          {n.label.split("/").pop()}
+                        </button>
+                      ))}
+                      {outgoing.length > 5 && <span className="text-muted-foreground/50">+{outgoing.length - 5} more</span>}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

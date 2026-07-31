@@ -479,15 +479,21 @@ CREATE OR REPLACE FUNCTION join_team_by_code(p_team_code TEXT)
 RETURNS UUID AS $$
 DECLARE
   v_team_id UUID;
+  v_user_id UUID;
 BEGIN
   -- Find the team (runs as SECURITY DEFINER so it bypasses RLS)
   SELECT id INTO v_team_id FROM teams WHERE team_code = p_team_code;
   
   IF v_team_id IS NOT NULL THEN
-    -- Insert into team_members if not already there
-    INSERT INTO team_members (team_id, user_id, role)
-    VALUES (v_team_id, auth.uid(), 'member')
-    ON CONFLICT (team_id, user_id) DO NOTHING;
+    -- Get the current user; may be NULL if token is expired
+    v_user_id := auth.uid();
+    
+    IF v_user_id IS NOT NULL THEN
+      -- Insert into team_members if not already there
+      INSERT INTO team_members (team_id, user_id, role)
+      VALUES (v_team_id, v_user_id, 'member')
+      ON CONFLICT (team_id, user_id) DO NOTHING;
+    END IF;
     
     RETURN v_team_id;
   END IF;
