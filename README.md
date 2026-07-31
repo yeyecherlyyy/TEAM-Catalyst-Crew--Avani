@@ -235,7 +235,3 @@ python -m unittest test_judge_agent -v
 - **Database & Auth**: Supabase (PostgreSQL, Row Level Security, WebSockets Realtime engine).
 
 ---
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
